@@ -4,6 +4,9 @@ import { createServer as createViteServer } from 'vite';
 import { db } from './server/db';
 import { analyzeCandidateProfiles } from './server/analyzer';
 import { generateApplicationPackage } from './server/appGenerator';
+import { scrapeGitHubProfile, scrapeLeetCodeProfile, scrapeSubstackProfile } from './server/scrapers';
+import { generateTailoredResumePackage, buildLatexResumeDocument } from './server/resumeGenerator';
+import { generateFollowUpSequence, generateIcsCalendarFile } from './server/followupGenerator';
 import { ProfileUrls, PlatformType, JobApplication, AgentTask, AgentTaskLog } from './src/types';
 
 async function startServer() {
@@ -466,6 +469,166 @@ Guidelines:
     } catch (err: any) {
       res.status(500).json({ error: err.message || 'Failed to refine draft' });
     }
+  });
+
+  // --- 6. Live Scraper Check & Telemetry ---
+  app.post('/api/scrape/live-check', async (req: Request, res: Response) => {
+    try {
+      const { platform, urlOrHandle } = req.body as { platform: 'github' | 'leetcode' | 'substack'; urlOrHandle: string };
+      if (!urlOrHandle) {
+        return res.status(400).json({ error: 'urlOrHandle is required' });
+      }
+
+      if (platform === 'github') {
+        const result = await scrapeGitHubProfile(urlOrHandle);
+        return res.json({ success: true, platform: 'github', result });
+      }
+      if (platform === 'leetcode') {
+        const result = await scrapeLeetCodeProfile(urlOrHandle);
+        return res.json({ success: true, platform: 'leetcode', result });
+      }
+      if (platform === 'substack') {
+        const result = await scrapeSubstackProfile(urlOrHandle);
+        return res.json({ success: true, platform: 'substack', result });
+      }
+
+      // Check all
+      const [gh, lc, sub] = await Promise.all([
+        scrapeGitHubProfile(urlOrHandle),
+        scrapeLeetCodeProfile(urlOrHandle),
+        scrapeSubstackProfile(urlOrHandle),
+      ]);
+      res.json({ success: true, results: { github: gh, leetcode: lc, substack: sub } });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Scrape execution failed' });
+    }
+  });
+
+  // --- 7. ATS LaTeX Resume & PDF Routes ---
+  app.post('/api/resume/generate', (req: Request, res: Response) => {
+    try {
+      const user = getUserFromReq(req);
+      const userId = user?.id || 'usr-demo-001';
+      const { jobTitle, companyName, jobDescription, customData } = req.body;
+
+      let candidate = db.getAnalysis(userId);
+      if (!candidate) {
+        // Fallback default
+        candidate = {
+          id: 'cand-default',
+          fullName: user?.name || 'Shivam Singh',
+          tagline: 'Full-Stack Software Engineer',
+          executiveSummary: 'Full-Stack Software Engineer specializing in scalable cloud architectures.',
+          experienceLevel: 'Senior',
+          skillsMatrix: [],
+          githubMetrics: { username: 'singhshivam', totalRepos: 24, topLanguages: ['TypeScript', 'Python'], featuredRepos: [], commitFrequency: 'High', codeQualityRating: 94 },
+          leetcodeMetrics: { totalSolved: 480, easySolved: 160, mediumSolved: 260, hardSolved: 60, estimatedRating: 1950, topTopics: [], globalRankingTopPercent: 'Top 3.5%' },
+          linkedinHighlights: { headline: 'Software Engineer', yearsOfExp: 4, keyAchievements: [], industryDomains: [] },
+          substackInsights: { handle: 'shivam', publicationTopics: [], technicalDepthScore: 92, notableArticles: [] },
+          twitterSignals: { handle: 'shivam', publicBuildingFocus: [], domainAuthority: 'High' },
+          keyStrengths: [],
+          competitiveAdvantages: [],
+          growthAreas: [],
+          overallMarketFitScore: 94,
+          analyzedAt: new Date().toISOString(),
+          sourcesAnalyzed: { linkedin: true, github: true, leetcode: true, substack: true, twitter: true },
+        };
+      }
+
+      if (customData) {
+        const latexSource = buildLatexResumeDocument(customData);
+        return res.json({
+          success: true,
+          resumePackage: {
+            latexSource,
+            structuredResume: customData,
+            atsKeywordsTargeted: ['TypeScript', 'React', 'Node.js', 'PostgreSQL', 'System Design'],
+            tailoredForRole: jobTitle || 'Software Engineer',
+            tailoredForCompany: companyName || 'Target Company',
+          },
+        });
+      }
+
+      const resumePackage = generateTailoredResumePackage(
+        candidate,
+        jobTitle || 'Senior Software Engineer',
+        companyName || 'Target Organization',
+        jobDescription || ''
+      );
+
+      res.json({ success: true, resumePackage });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to generate LaTeX resume' });
+    }
+  });
+
+  // --- 8. Recruiter Follow-up Cadence & ICS Routes ---
+  app.post('/api/followup/generate', (req: Request, res: Response) => {
+    try {
+      const user = getUserFromReq(req);
+      const userId = user?.id || 'usr-demo-001';
+      const { jobTitle, companyName, targetPlatform } = req.body;
+
+      const candidate = db.getAnalysis(userId) || {
+        id: 'cand-default',
+        fullName: user?.name || 'Shivam Singh',
+        tagline: 'Software Engineer',
+        executiveSummary: '',
+        experienceLevel: 'Mid-Senior',
+        skillsMatrix: [],
+        githubMetrics: { username: 'singhshivam', totalRepos: 24, topLanguages: ['TypeScript'], featuredRepos: [], commitFrequency: 'High', codeQualityRating: 94 },
+        leetcodeMetrics: { totalSolved: 480, easySolved: 160, mediumSolved: 260, hardSolved: 60, estimatedRating: 1950, topTopics: [], globalRankingTopPercent: 'Top 3.5%' },
+        linkedinHighlights: { headline: 'Software Engineer', yearsOfExp: 4, keyAchievements: [], industryDomains: [] },
+        substackInsights: { handle: 'shivam', publicationTopics: [], technicalDepthScore: 92, notableArticles: [] },
+        twitterSignals: { handle: 'shivam', publicBuildingFocus: [], domainAuthority: 'High' },
+        keyStrengths: [],
+        competitiveAdvantages: [],
+        growthAreas: [],
+        overallMarketFitScore: 94,
+        analyzedAt: new Date().toISOString(),
+        sourcesAnalyzed: { linkedin: true, github: true, leetcode: true, substack: true, twitter: true },
+      };
+
+      const sequence = generateFollowUpSequence(candidate, jobTitle || 'Software Engineer', companyName || 'Target Company', targetPlatform);
+      res.json({ success: true, sequence });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to generate follow-up sequence' });
+    }
+  });
+
+  app.get('/api/jobs/:id/ics', (req: Request, res: Response) => {
+    const job = db.getJob(req.params.id);
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
+    const user = getUserFromReq(req);
+    const candidate = db.getAnalysis(job.userId) || {
+      id: 'cand-default',
+      fullName: user?.name || 'Candidate',
+      tagline: 'Software Engineer',
+      executiveSummary: '',
+      experienceLevel: 'Mid-Senior',
+      skillsMatrix: [],
+      githubMetrics: { username: 'developer', totalRepos: 20, topLanguages: ['TypeScript'], featuredRepos: [], commitFrequency: 'High', codeQualityRating: 94 },
+      leetcodeMetrics: { totalSolved: 450, easySolved: 150, mediumSolved: 240, hardSolved: 60, estimatedRating: 1900, topTopics: [], globalRankingTopPercent: 'Top 4%' },
+      linkedinHighlights: { headline: 'Software Engineer', yearsOfExp: 4, keyAchievements: [], industryDomains: [] },
+      substackInsights: { handle: 'developer', publicationTopics: [], technicalDepthScore: 90, notableArticles: [] },
+      twitterSignals: { handle: 'developer', publicBuildingFocus: [], domainAuthority: 'High' },
+      keyStrengths: [],
+      competitiveAdvantages: [],
+      growthAreas: [],
+      overallMarketFitScore: 92,
+      analyzedAt: new Date().toISOString(),
+      sourcesAnalyzed: { linkedin: true, github: true, leetcode: true, substack: true, twitter: true },
+    };
+
+    const sequence = job.applicationPackage.followUpSequence || generateFollowUpSequence(candidate, job.jobTitle, job.companyName, job.targetPlatform);
+    const icsContent = generateIcsCalendarFile(sequence, new Date(job.createdAt));
+
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${job.companyName.toLowerCase().replace(/[^a-z0-9]/g, '_')}_followup_cadence.ics"`);
+    res.send(icsContent);
   });
 
   app.delete('/api/jobs/:id', (req: Request, res: Response) => {

@@ -283,18 +283,28 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                           <option value="archived">Archived</option>
                         </select>
 
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (window.confirm(`Delete application for ${job.companyName}?`)) {
-                              onDeleteJob(job.id);
-                            }
-                          }}
-                          className="text-slate-600 hover:text-rose-400 p-1"
-                          title="Delete Application"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <a
+                            href={`/api/jobs/${job.id}/ics`}
+                            download
+                            className="text-slate-500 hover:text-purple-400 p-1 transition-colors"
+                            title="Download Recruiter Follow-up .ICS Calendar"
+                          >
+                            <Calendar className="h-3.5 w-3.5" />
+                          </a>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (window.confirm(`Delete application for ${job.companyName}?`)) {
+                                onDeleteJob(job.id);
+                              }
+                            }}
+                            className="text-slate-600 hover:text-rose-400 p-1"
+                            title="Delete Application"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}

@@ -54,6 +54,7 @@ export const ProfileHub: React.FC<ProfileHubProps> = ({
   const [skillSearch, setSkillSearch] = useState('');
   const [activeSkillCategory, setActiveSkillCategory] = useState<string>('all');
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [liveScrapeStatus, setLiveScrapeStatus] = useState<{ [key: string]: { checking?: boolean; success?: boolean; details?: string } }>({});
 
   const handleApplyPreset = (preset: SampleProfilePreset) => {
     setSelectedPresetId(preset.id);
@@ -65,6 +66,42 @@ export const ProfileHub: React.FC<ProfileHubProps> = ({
       ...prev,
       [platform]: value,
     }));
+  };
+
+  const handleTestScraper = async (platform: 'github' | 'leetcode' | 'substack') => {
+    const urlOrHandle = urls[platform];
+    if (!urlOrHandle) return;
+
+    setLiveScrapeStatus((prev) => ({ ...prev, [platform]: { checking: true } }));
+    try {
+      const res = await fetch('/api/scrape/live-check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ platform, urlOrHandle }),
+      });
+      const data = await res.json();
+      if (data.success && data.result) {
+        let details = '';
+        if (platform === 'github') details = `${data.result.totalRepos} Repos | ${data.result.topLanguages?.join(', ')}`;
+        else if (platform === 'leetcode') details = `${data.result.totalSolved} Solved | Top ${data.result.rankingPercentile || '10%'}`;
+        else if (platform === 'substack') details = `${data.result.recentArticles?.length || 0} Articles Indexed`;
+        
+        setLiveScrapeStatus((prev) => ({
+          ...prev,
+          [platform]: { checking: false, success: true, details: details || 'Profile Connected' },
+        }));
+      } else {
+        setLiveScrapeStatus((prev) => ({
+          ...prev,
+          [platform]: { checking: false, success: false, details: 'Offline fallback active' },
+        }));
+      }
+    } catch (err) {
+      setLiveScrapeStatus((prev) => ({
+        ...prev,
+        [platform]: { checking: false, success: false, details: 'Scraper timeout' },
+      }));
+    }
   };
 
   const handleCopy = (text: string, key: string) => {
@@ -169,13 +206,27 @@ export const ProfileHub: React.FC<ProfileHubProps> = ({
 
             {/* GitHub */}
             <div>
-              <label className="flex items-center justify-between text-xs font-semibold text-slate-300 mb-1.5">
-                <span className="flex items-center gap-1.5">
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-300">
                   <Github className="h-3.5 w-3.5 text-slate-300" />
                   <span>GitHub Profile</span>
-                </span>
-                <span className="text-[10px] text-slate-500">Repositories & PRs</span>
-              </label>
+                </label>
+                <div className="flex items-center gap-2">
+                  {liveScrapeStatus.github?.details && (
+                    <span className="text-[10px] text-emerald-400 font-mono">
+                      ✓ {liveScrapeStatus.github.details}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleTestScraper('github')}
+                    disabled={!urls.github || liveScrapeStatus.github?.checking}
+                    className="text-[10px] text-indigo-400 hover:text-indigo-300 font-medium px-1.5 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20 disabled:opacity-40"
+                  >
+                    {liveScrapeStatus.github?.checking ? 'Scraping...' : 'Ping Live API'}
+                  </button>
+                </div>
+              </div>
               <div className="relative">
                 <input
                   type="url"
@@ -189,13 +240,27 @@ export const ProfileHub: React.FC<ProfileHubProps> = ({
 
             {/* LeetCode */}
             <div>
-              <label className="flex items-center justify-between text-xs font-semibold text-slate-300 mb-1.5">
-                <span className="flex items-center gap-1.5">
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-300">
                   <Code2 className="h-3.5 w-3.5 text-amber-400" />
                   <span>LeetCode Profile</span>
-                </span>
-                <span className="text-[10px] text-slate-500">DSA & Contest Rating</span>
-              </label>
+                </label>
+                <div className="flex items-center gap-2">
+                  {liveScrapeStatus.leetcode?.details && (
+                    <span className="text-[10px] text-amber-300 font-mono">
+                      ✓ {liveScrapeStatus.leetcode.details}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleTestScraper('leetcode')}
+                    disabled={!urls.leetcode || liveScrapeStatus.leetcode?.checking}
+                    className="text-[10px] text-amber-400 hover:text-amber-300 font-medium px-1.5 py-0.5 rounded bg-amber-500/10 border border-amber-500/20 disabled:opacity-40"
+                  >
+                    {liveScrapeStatus.leetcode?.checking ? 'Querying GraphQL...' : 'Ping GraphQL'}
+                  </button>
+                </div>
+              </div>
               <div className="relative">
                 <input
                   type="url"
@@ -209,13 +274,27 @@ export const ProfileHub: React.FC<ProfileHubProps> = ({
 
             {/* Substack */}
             <div>
-              <label className="flex items-center justify-between text-xs font-semibold text-slate-300 mb-1.5">
-                <span className="flex items-center gap-1.5">
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-300">
                   <BookOpen className="h-3.5 w-3.5 text-orange-400" />
                   <span>Substack / Technical Blog</span>
-                </span>
-                <span className="text-[10px] text-slate-500">Written Architecture</span>
-              </label>
+                </label>
+                <div className="flex items-center gap-2">
+                  {liveScrapeStatus.substack?.details && (
+                    <span className="text-[10px] text-orange-300 font-mono">
+                      ✓ {liveScrapeStatus.substack.details}
+                    </span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleTestScraper('substack')}
+                    disabled={!urls.substack || liveScrapeStatus.substack?.checking}
+                    className="text-[10px] text-orange-400 hover:text-orange-300 font-medium px-1.5 py-0.5 rounded bg-orange-500/10 border border-orange-500/20 disabled:opacity-40"
+                  >
+                    {liveScrapeStatus.substack?.checking ? 'Parsing RSS...' : 'Ping RSS Feed'}
+                  </button>
+                </div>
+              </div>
               <div className="relative">
                 <input
                   type="url"

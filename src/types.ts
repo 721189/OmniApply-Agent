@@ -154,6 +154,89 @@ export interface ApplicationPackage {
     summary: string;
   }>;
   tailoredBio: string;
+  latexResume?: LatexResumePackage;
+  followUpSequence?: FollowUpSequence;
+}
+
+export interface ResumeProject {
+  title: string;
+  technologies: string;
+  bullets: string[];
+  githubUrl?: string;
+  liveUrl?: string;
+}
+
+export interface ResumeExperience {
+  role: string;
+  company: string;
+  location: string;
+  duration: string;
+  bullets: string[];
+}
+
+export interface ResumeData {
+  fullName: string;
+  email: string;
+  phone?: string;
+  location?: string;
+  links: {
+    github?: string;
+    linkedin?: string;
+    portfolio?: string;
+    leetcode?: string;
+  };
+  summary: string;
+  education: Array<{
+    institution: string;
+    degree: string;
+    location: string;
+    duration: string;
+    details?: string;
+  }>;
+  skills: {
+    languages: string[];
+    frameworks: string[];
+    developerTools: string[];
+    librariesOrDatabases: string[];
+  };
+  experience: ResumeExperience[];
+  projects: ResumeProject[];
+  awardsOrAchievements?: string[];
+}
+
+export interface LatexResumePackage {
+  latexSource: string;
+  structuredResume: ResumeData;
+  atsKeywordsTargeted: string[];
+  tailoredForRole: string;
+  tailoredForCompany: string;
+}
+
+export interface FollowUpEmail {
+  stage: 'day0_intro' | 'day4_polite_touchpoint' | 'day8_value_add' | 'day14_soft_breakup';
+  dayOffset: number;
+  label: string;
+  recommendedWait: string;
+  subject: string;
+  body: string;
+  callToAction: string;
+  valueAddHook: string;
+}
+
+export interface FollowUpSequence {
+  jobTitle: string;
+  companyName: string;
+  recruiterName?: string;
+  emails: FollowUpEmail[];
+  calendarReminderSummary: string;
+}
+
+export interface LiveScrapeResult {
+  source: 'github' | 'leetcode' | 'substack' | 'twitter';
+  success: boolean;
+  timestamp: string;
+  data?: any;
+  error?: string;
 }
 
 export interface JobApplication {

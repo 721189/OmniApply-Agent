@@ -1,5 +1,7 @@
 import { getGeminiAI } from './gemini';
 import { CandidateAnalysis, ApplicationPackage, PlatformType, AgentTaskLog } from '../src/types';
+import { generateTailoredResumePackage } from './resumeGenerator';
+import { generateFollowUpSequence } from './followupGenerator';
 
 export async function generateApplicationPackage(
   candidate: CandidateAnalysis,
@@ -31,7 +33,12 @@ export async function generateApplicationPackage(
   emit(35, 'Cross-Referencing Candidate Signals', `Matching candidate GitHub repos, LeetCode metrics (${candidate.leetcodeMetrics.totalSolved} solved), and Substack articles with JD...`);
   await new Promise((r) => setTimeout(r, 200));
 
-  emit(65, 'Synthesizing Tailored Application Package', `Generating high-conversion cover letter, recruiter screening responses, ATS score report, and platform-specific fields...`);
+  emit(55, 'Generating ATS Harvard LaTeX Resume & Follow-up Cadence', `Structuring tailored single-column ATS resume and 4-stage recruiter follow-up sequence...`);
+  
+  const latexResume = generateTailoredResumePackage(candidate, jobTitle, companyName, jobDescription);
+  const followUpSequence = generateFollowUpSequence(candidate, jobTitle, companyName, targetPlatform);
+
+  emit(70, 'Synthesizing Tailored Application Package', `Generating high-conversion cover letter, recruiter screening responses, ATS score report, and platform-specific fields...`);
 
   try {
     const ai = getGeminiAI();
@@ -171,16 +178,20 @@ Return a strictly valid JSON object with the following schema:
     emit(90, 'Validating Application Dossier', `Formatting all recruiter response fields for ${targetPlatform.toUpperCase()}...`);
 
     const text = response.text || '';
-    const parsed = JSON.parse(text);
+    const parsed = JSON.parse(text) as ApplicationPackage;
+    parsed.latexResume = latexResume;
+    parsed.followUpSequence = followUpSequence;
 
     emit(100, 'Application Ready', `High-conversion application package generated successfully!`, 'success');
-    return parsed as ApplicationPackage;
+    return parsed;
   } catch (error) {
     console.warn('Gemini API application package fallback:', error);
     emit(85, 'Fallback Generation Engine', `Building tailored recruiter responses using candidate profile matrices...`);
 
     // Deterministic high-quality fallback
     const fallbackPackage: ApplicationPackage = {
+      latexResume,
+      followUpSequence,
       coverLetter: `Dear Hiring Team at **${companyName}**,
 
 I am writing to express my enthusiastic interest in the **${jobTitle}** position. Having closely followed ${companyName}'s innovation in the industry, I am excited about the opportunity to contribute my full-stack engineering expertise, distributed systems knowledge, and relentless problem-solving drive to your team.

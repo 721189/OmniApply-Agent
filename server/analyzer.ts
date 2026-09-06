@@ -1,33 +1,18 @@
 import { getGeminiAI } from './gemini';
 import { ProfileUrls, CandidateAnalysis, AgentTaskLog } from '../src/types';
 import { Type } from '@google/genai';
-
-function extractHandle(url: string, platform: string): string {
-  if (!url) return '';
-  try {
-    const cleaned = url.trim().replace(/\/+$/, '');
-    const parts = cleaned.split('/');
-    const lastPart = parts[parts.length - 1];
-    if (platform === 'leetcode' && parts.includes('u')) {
-      const uIndex = parts.indexOf('u');
-      return parts[uIndex + 1] || lastPart;
-    }
-    return lastPart || 'engineer';
-  } catch {
-    return 'engineer';
-  }
-}
+import { scrapeGitHubProfile, scrapeLeetCodeProfile, scrapeSubstackProfile, extractUsernameFromUrl } from './scrapers';
 
 export async function analyzeCandidateProfiles(
   urls: ProfileUrls,
   userName: string = 'Candidate',
   onProgress?: (progress: number, stage: string, log: AgentTaskLog) => void
 ): Promise<CandidateAnalysis> {
-  const ghHandle = extractHandle(urls.github, 'github') || 'developer';
-  const lcHandle = extractHandle(urls.leetcode, 'leetcode') || 'coder';
-  const liHandle = extractHandle(urls.linkedin, 'linkedin') || 'professional';
-  const subHandle = extractHandle(urls.substack, 'substack') || 'writer';
-  const twHandle = extractHandle(urls.twitter, 'twitter') || 'builder';
+  const ghHandle = extractUsernameFromUrl(urls.github, 'github') || 'developer';
+  const lcHandle = extractUsernameFromUrl(urls.leetcode, 'leetcode') || 'coder';
+  const liHandle = extractUsernameFromUrl(urls.linkedin, 'linkedin') || 'professional';
+  const subHandle = extractUsernameFromUrl(urls.substack, 'substack') || 'writer';
+  const twHandle = extractUsernameFromUrl(urls.twitter, 'twitter') || 'builder';
 
   const workerId = `worker-celery-redis-${Math.floor(10 + Math.random() * 90)}`;
 
@@ -43,13 +28,19 @@ export async function analyzeCandidateProfiles(
     }
   };
 
-  emit(15, 'Ingesting Multi-Platform URLs', `Connecting to GitHub (@${ghHandle}), LeetCode (@${lcHandle}), LinkedIn, Substack, Twitter/X...`);
-  await new Promise((r) => setTimeout(r, 250));
+  emit(15, 'Ingesting Multi-Platform URLs', `Connecting to live GitHub API (@${ghHandle}), LeetCode GraphQL (@${lcHandle}), Substack RSS...`);
+  
+  // Run live scrapers in parallel
+  const [ghScrape, lcScrape, subScrape] = await Promise.all([
+    scrapeGitHubProfile(urls.github || ghHandle),
+    scrapeLeetCodeProfile(urls.leetcode || lcHandle),
+    scrapeSubstackProfile(urls.substack || subHandle),
+  ]);
 
-  emit(35, 'Extracting Public Profiles & Activity', `Scraped repositories, algorithmic problem logs, professional milestones, and technical essays.`);
-  await new Promise((r) => setTimeout(r, 250));
+  emit(35, 'Extracting Public Profiles & Activity', `Live Data Verified: GitHub (${ghScrape.totalRepos} repos, languages: ${ghScrape.topLanguages.slice(0,3).join(', ')}), LeetCode (${lcScrape.metrics.totalSolved} solved, ${lcScrape.metrics.globalRankingTopPercent}), Substack (${subScrape.notableArticles.length} articles).`, 'success');
+  await new Promise((r) => setTimeout(r, 200));
 
-  emit(60, 'Synthesizing with Gemini 3.8 Flash', `Running deep candidate cross-platform intelligence synthesis with Gemini reasoning...`);
+  emit(60, 'Synthesizing with Gemini 2.5 Flash', `Running deep candidate cross-platform intelligence synthesis with Gemini reasoning...`);
 
   try {
     const ai = getGeminiAI();
