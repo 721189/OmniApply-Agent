@@ -435,6 +435,8 @@ export default function App() {
             onUpdateStatus={handleUpdateJobStatus}
             onDeleteJob={handleDeleteJob}
             onCreateNewApplication={() => setActiveTab('studio')}
+            onRefreshJobs={fetchSavedJobs}
+            candidateName={currentUser?.name || analysis?.fullName || 'Shivam Singh'}
           />
         )}
 

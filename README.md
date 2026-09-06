@@ -7,211 +7,184 @@
 [![Gemini](https://img.shields.io/badge/Gemini_2.5_Flash-Google_AI-4285F4?style=flat-square&logo=google&logoColor=white)](https://ai.google.dev/)
 [![Status](https://img.shields.io/badge/Status-Production_Ready-emerald?style=flat-square)]()
 
-**OmniApply AI** is a multi-platform job application and career intelligence suite. It aggregates candidate public footprints across **LinkedIn, GitHub, LeetCode, Substack, and Twitter/X**, synthesizes a **Unified Candidate Dossier**, and generates tailored, ATS-optimized application packages for **Wellfound, LinkedIn, Internshala, Greenhouse, and Lever**.
+**OmniApply AI** is an end-to-end autonomous career intelligence engine and multi-platform application compiler. It aggregates candidate public footprints across **GitHub, LeetCode, Substack, LinkedIn, and Twitter/X**, synthesizes a **Unified Candidate Dossier**, and generates tailored, ATS-optimized application packages for **Wellfound, LinkedIn, Internshala, Greenhouse, and Lever**.
 
 ---
 
 ## 📑 Table of Contents
 
-- [Architectural Workflow Diagram](#-architectural-workflow-diagram)
-- [Core Capabilities](#-core-capabilities)
-- [Multi-Platform Ingestion Engine](#-multi-platform-ingestion-engine)
-- [Target Platform Adapters](#-target-platform-adapters)
-- [Interactive AI Draft Refiner](#-interactive-ai-draft-refiner)
-- [Real-Time Celery / Redis Worker Telemetry](#-real-time-celery--redis-worker-telemetry)
-- [Application Pipeline & Kanban Tracker](#-application-pipeline--kanban-tracker)
-- [API Reference](#-api-reference)
-- [Tech Stack](#-tech-stack)
-- [Getting Started & Local Setup](#-getting-started--local-setup)
-- [Honest Disclosures & Best Practices](#-honest-disclosures--best-practices)
+- [🧩 System Architecture & Workflow](#-system-architecture--workflow)
+- [🌟 Key Core Capabilities](#-key-core-capabilities)
+  - [1. Multi-Platform Signal Ingestion & Live Scrapers](#1-multi-platform-signal-ingestion--live-scrapers)
+  - [2. ATS-Compliant LaTeX & PDF Resume Generator](#2-ats-compliant-latex--pdf-resume-generator)
+  - [3. Recruiter Follow-up Drip Sequencer & .ICS Sync](#3-recruiter-follow-up-drip-sequencer--ics-sync)
+  - [4. 📊 Salary Negotiation & Offer Evaluation Calculator](#4--salary-negotiation--offer-evaluation-calculator)
+  - [5. Platform-Tailored Application Adapters](#5-platform-tailored-application-adapters)
+  - [6. Real-Time Celery / Redis Worker Telemetry](#6-real-time-celery--redis-worker-telemetry)
+  - [7. Dual-View Kanban & Table Pipeline](#7-dual-view-kanban--table-pipeline)
+- [📡 API Reference](#-api-reference)
+- [🛠️ Tech Stack & Dependencies](#-tech-stack--dependencies)
+- [🚀 Local Development & Setup](#-local-development--setup)
+- [🤝 Contributing](#-contributing)
+- [💡 Honest Disclosures & Ethics](#-honest-disclosures--ethics)
 
 ---
 
-## 🧩 Architectural Workflow Diagram
+## 🧩 System Architecture & Workflow
 
-```mermaid
-flowchart TD
-    subgraph INGESTION["1. Multi-Platform Ingestion & Signal Extraction"]
-        A1["LinkedIn Profile\n(Experience, Roles)"] --> S1["Signal Aggregator"]
-        A2["GitHub Account\n(Repos, Tech Stack, PRs)"] --> S1
-        A3["LeetCode Profile\n(DSA Rating, Badges)"] --> S1
-        A4["Substack / Blog\n(Tech Articles, Topics)"] --> S1
-        A5["Twitter / X\n(Thought Leadership)"] --> S1
-    end
-
-    subgraph DOSSIER["2. Candidate Intelligence Synthesis"]
-        S1 -->|"Raw Metadata"| G1["Gemini 2.5 Flash\nCandidate Dossier Synthesizer"]
-        G1 --> D1["Unified Candidate Dossier\n• Technical Breadth & Star Projects\n• DSA Competency Rating\n• Voice & Writing Style DNA\n• Proven Metrics & Key Strengths"]
-    end
-
-    subgraph JOB_TARGET["3. Job Studio & Platform Adapters"]
-        JD["Target Job Posting\n(Title, JD, Platform, Compensation)"] --> T1["Platform Matrix Engine"]
-        D1 --> T1
-        T1 --> P1["Wellfound Adapter\n(Founder Note + Equity Pitch)"]
-        T1 --> P2["LinkedIn Adapter\n(Recruiter InMail + Headline)"]
-        T1 --> P3["Internshala Adapter\n(Assignment & Why-Hire Answers)"]
-        T1 --> P4["Enterprise ATS (Greenhouse / Lever)\n(Screening Q&A + Tailored Bullets)"]
-    end
-
-    subgraph OPTIMIZER["4. Reviewer, Refiner & ATS Analysis"]
-        P1 & P2 & P3 & P4 --> R1["Systematic Application Reviewer"]
-        R1 --> AI_REFINE["AI Live Refiner\n• Sharpen & Make Punchy\n• Add Metrics & Impact\n• ATS Keyword Optimization\n• Casual / Conversational Tone"]
-        R1 --> ATS["ATS Scoring Engine\n(Match Score, Keyword Hits, Gap Analysis)"]
-    end
-
-    subgraph PIPELINE["5. Application Lifecycle & Telemetry"]
-        R1 --> DB[("In-Memory & SQLite Store")]
-        DB --> KANBAN["Dual-View Job Tracker\n(Kanban Board + Data Table + CSV Export)"]
-        DB --> TELEM["Worker Telemetry\n(Simulated Celery Queue & Redis Cache)"]
-    end
+```
+                                  OMNIAPPLY AI ARCHITECTURE
+                                  
+   +---------------------------------------------------------------------------------+
+   |                                1. SIGNAL INGESTION                              |
+   |                                                                                 |
+   |   [ GitHub API ]       [ LeetCode GraphQL ]      [ Substack RSS ]     [ LinkedIn/X ]
+   |   Repos, PRs, Langs    DSA Ranking, Badges      Writings, Essays      Tenure & Bio  
+   +---------------------------------------+-----------------------------------------+
+                                           |
+                                           v
+   +---------------------------------------------------------------------------------+
+   |                           2. CANDIDATE INTELLIGENCE                             |
+   |                                                                                 |
+   |                       Gemini 2.5 Flash / Analyzer Engine                        |
+   |                                       |                                         |
+   |                                       v                                         |
+   |                             Unified Candidate Dossier                           |
+   |       * Skills Matrix   * Star Repos   * DSA Metrics   * Voice DNA   * KPIs     |
+   +---------------------------------------+-----------------------------------------+
+                                           |
+                                           v
+   +---------------------------------------------------------------------------------+
+   |                              3. JOB STUDIO & ADAPTERS                           |
+   |                                                                                 |
+   |   [ Wellfound Adapter ]   [ LinkedIn InMail ]   [ Internshala ]   [ ATS (Greenhouse) ]
+   |   Founder pitch + equity  Recruiter pitch 120w  Why-hire Q&A      XYZ-formula bullets 
+   +---------------------------------------+-----------------------------------------+
+                                           |
+        +----------------------------------+----------------------------------+
+        |                                  |                                  |
+        v                                  v                                  v
++-----------------------+      +-----------------------+      +-----------------------+
+|  4. ATS LATEX ENGINE  |      |  5. FOLLOW-UP CADENCE |      |  6. OFFER NEGOTIATOR  |
+|                       |      |                       |      |                       |
+| Overleaf-ready .tex   |      | 4-Stage Drip Sequence |      | Market percentiles    |
+| Single-page layout    |      | InMail / Email copy   |      | Equity vesting model  |
+| Clean PDF print view  |      | RFC 5545 .ICS sync    |      | Counter-offer scripts |
++-----------------------+      +-----------------------+      +-----------------------+
+        |                                  |                                  |
+        +----------------------------------+----------------------------------+
+                                           |
+                                           v
+   +---------------------------------------------------------------------------------+
+   |                             7. LIFECYCLE & TRACKING                             |
+   |                                                                                 |
+   |     Dual-View Kanban Board  <--->  Data Table View  <--->  CSV / JSON Export    |
+   |     Prepared  -->  Applied  -->  Interviewing  -->  Offer Received  --> Archive |
+   +---------------------------------------------------------------------------------+
 ```
 
 ---
 
-## 🌟 Core Capabilities
+## 🌟 Key Core Capabilities
 
-| Feature | Description |
+### 1. Multi-Platform Signal Ingestion & Live Scrapers
+- **Live Scrapers (`/server/scrapers.ts`)**:
+  - **GitHub**: Queries public REST APIs for language distributions, star counts, pinned repos, and commit cadence.
+  - **LeetCode**: Queries public GraphQL endpoints to extract total problems solved, contest rating, and global ranking percentiles.
+  - **Substack**: Parses RSS feeds to extract article titles, publication themes, and technical writing depth.
+  - **Non-blocking Resiliency**: Implements 4-second `AbortController` timeouts with deterministic fallback models if network rate limits are encountered.
+
+### 2. ATS-Compliant LaTeX & PDF Resume Generator
+- Generates publication-quality, ATS-optimized single-page LaTeX resumes ready for **Overleaf** or local `pdflatex` compilation.
+- Features:
+  - Strict ATS formatting without tables, multi-column blocks, or graphics that break OCR scanners.
+  - XYZ-formula bullet formatting (`Accomplished [X], measured by [Y], by doing [Z]`).
+  - Embedded keyword density matching target job descriptions.
+  - Built-in live browser PDF print previewer and one-click `.tex` export.
+
+### 3. Recruiter Follow-up Drip Sequencer & .ICS Sync
+- Compiles a proactive 4-stage follow-up schedule:
+  1. **Day 3**: Subtle value-add touchpoint (sharing relevant open-source repo or article).
+  2. **Day 7**: Direct recruiter InMail / email check-in.
+  3. **Day 14**: Secondary project update & traction milestone.
+  4. **Day 21**: Graceful breakup / future-pipeline note.
+- **One-Click Calendar Sync**: Generates RFC 5545 standard `.ics` calendar files that import directly into **Google Calendar, Apple Calendar, and Microsoft Outlook**.
+
+### 4. 📊 Salary Negotiation & Offer Evaluation Calculator
+- **Market Benchmarking**: Evaluates base compensation, sign-on bonuses, and equity grants against real-world percentiles (Levels.fyi / Glassdoor data points).
+- **Location Tier Support**: Tier 1 (SF Bay Area, NYC, Seattle), Tier 2 (Austin, Boston, London, Toronto), Tier 3 (Remote, Berlin, Bangalore).
+- **Equity Growth Modeling**: Calculates Year 1 Total Compensation (TC) vs. Recurring TC with 4-year cliff vesting and startup valuation multipliers (1x to 5x).
+- **Counter-Offer Email Generator**: Generates professional, diplomatic negotiation scripts tailored for:
+  - Multiple competing offers.
+  - Market percentile under-compensation.
+  - Flexible equity-to-base rebalancing.
+
+### 5. Platform-Tailored Application Adapters
+| Target Platform | Output Format & Strategy |
 |---|---|
-| **Multi-Source Footprint Aggregator** | Pulls from 5 developer platforms simultaneously to understand your complete engineering, algorithmic, and writing background. |
-| **Unified Candidate Dossier** | Structures your skills into verified languages, star repositories, DSA percentiles, technical domains, and key quantifiable metrics. |
-| **Platform-Specific Cover Letters** | Adjusts tone and format specifically for Wellfound founders, LinkedIn recruiters, Internshala mentors, or enterprise hiring managers. |
-| **Automated Screening Q&A** | Generates detailed, candidate-grounded answers for recurring questions (notice period, compensation expectations, relocation, system architecture experience). |
-| **Deterministic ATS Analysis** | Analyzes job description keyword overlap, identifying matched terms, missing keywords, and recommended action items with a 0–100 match score. |
-| **One-Click AI Refiner** | Apply real-time transformations on drafted text (make punchier, inject metrics, maximize ATS match, or soften tone). |
-| **Kanban & Table Pipeline** | Track status transitions (`draft` → `prepared` → `applied` → `interviewing` → `offer` → `archived`) with CSV export support. |
-| **Worker Cluster Telemetry** | View real-time background task progress, worker node IDs, Redis latency, and sub-second stage execution logs. |
-| **GDPR-Compliant User Controls** | One-click JSON data export and account purge options with password management. |
+| **Wellfound (AngelList)** | Short founder note (150–200 words), zero-to-one traction, and startup equity stance. |
+| **LinkedIn InMail** | High-impact 120-word recruiter pitch with scannable bullet points and custom connection request note. |
+| **Internshala** | Structured answers to "Why should you be hired?" and availability confirmations. |
+| **Enterprise ATS (Greenhouse / Lever)** | Formal cover letter, tailored resume bullets, and candidate-grounded screening answers. |
 
----
+### 6. Real-Time Celery / Redis Worker Telemetry
+- Simulates production-grade asynchronous worker pools (`celery-worker-01`, `celery-worker-02`).
+- Provides real-time execution logs across four pipeline stages (`INGESTION` → `CORRELATION` → `SYNTHESIS` → `GENERATION`).
 
-## 🔍 Multi-Platform Ingestion Engine
-
-OmniApply AI integrates diverse public footprint vectors to build an authentic applicant persona:
-
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│                        CANDIDATE SIGNALS INGESTED                      │
-├───────────────────┬────────────────────────────────────────────────────┤
-│ 🔗 LinkedIn       │ Work history, job titles, tenure, education        │
-│ 🐙 GitHub         │ Starred repos, primary languages, commit density   │
-│ ⚡ LeetCode       │ Contest ranking, solved problem count (Easy/Med/Hard)│
-│ ✍️ Substack       │ Published architecture essays, tech domain depth   │
-│ 🐦 Twitter / X    │ Thought leadership themes, community engagement    │
-└───────────────────┴────────────────────────────────────────────────────┘
-```
-
----
-
-## 🎯 Target Platform Adapters
-
-Each job board has distinct recruiter dynamics. OmniApply AI generates tailored materials for each:
-
-### 1. Wellfound (AngelList)
-- **Direct Founder Note**: 150–200 words, direct, highlighting zero-to-one ownership and product velocity.
-- **Equity & Compensation Stance**: Clear statement regarding base salary vs. equity willingness.
-- **Star Project Tie-in**: Connects one relevant repository directly to the startup's product problem space.
-
-### 2. LinkedIn InMail & Pitch
-- **Recruiter Pitch**: 100–140 words, optimized for quick mobile reading with bulleted career highlights.
-- **Headline & Tagline**: High-converting LinkedIn connection request message (under 300 characters).
-
-### 3. Internshala
-- **Why Should You Be Hired?**: Structured 3-point answer grounded in portfolio projects and fast execution.
-- **Assignment/Project Availability**: Immediate commencement availability, hours per week, and stipend expectations.
-
-### 4. Enterprise ATS (Greenhouse & Lever)
-- **Tailored Resume Bullets**: XYZ-formula bullets (`Accomplished [X], measured by [Y], by doing [Z]`).
-- **Screening Questionnaire**: Complete, thoughtful answers to standard behavioral and technical prompts.
-
----
-
-## ⚡ Interactive AI Draft Refiner
-
-The Reviewer screen features live prompt transformations:
-
-```
- ┌──────────────────────────────────────────────────────────────┐
- │                    AI PROMPT REFINER MATRIX                  │
- ├──────────────────────────┬───────────────────────────────────┤
- │ ⚡ Sharpen & Make Punchy │ Cuts fluff, makes active & direct  │
- │ 📊 Inject Quant Metrics  │ Adds latency, revenue & scale KPIs│
- │ 🎯 Boost ATS Keywords    │ Injects core JD terminology       │
- │ 💬 Conversational Tone   │ Humanizes text for early startups │
- └──────────────────────────┴───────────────────────────────────┘
-```
-
----
-
-## 📊 Real-Time Celery / Redis Worker Telemetry
-
-The application includes a telemetry interface modeling a production background worker architecture:
-
-- **Worker Cluster**: Node monitoring (`celery-worker-01`, `celery-worker-02`).
-- **Task Lifecycle**: Step-by-step progress tracking (`INGESTION` → `CORRELATION` → `SYNTHESIS` → `GENERATION`).
-- **Redis Stats**: Sub-millisecond cache latency tracking and task state persistence.
-
----
-
-## 🗄️ Application Pipeline & Kanban Tracker
-
-- **Kanban Board**: Drag-and-drop or dropdown status shifts across 6 stages:
-  1. `Prepared / Draft`
-  2. `Applied`
-  3. `Interviewing`
-  4. `Offer Received`
-  5. `Archived`
-- **Data Table View**: Compact, sortable view with quick review and deletion controls.
-- **CSV Data Export**: One-click download of all job tracking records formatted for Google Sheets or Excel.
+### 7. Dual-View Kanban & Table Pipeline
+- Track job statuses across 6 distinct phases: `Prepared`, `Applied`, `Interviewing`, `Offer Received`, `Archived`.
+- Includes full-text search, platform filtering, CSV spreadsheet export, and quick note editing.
 
 ---
 
 ## 📡 API Reference
 
-### Authentication & User
-- `POST /api/auth/login` — Login or auto-create account.
-- `POST /api/auth/register` — Register a new account.
-- `POST /api/auth/verify-email` — Verify 6-digit verification code.
-- `GET  /api/auth/me` — Retrieve current authenticated user.
-- `PATCH /api/auth/profile` — Update user name, title, or location.
-- `POST /api/auth/change-password` — Update user security credentials.
-- `GET  /api/auth/export-data` — Export full account data as JSON.
-- `DELETE /api/auth/account` — Delete account and associated jobs.
+### Profile Intelligence & Live Scrapers
+- `POST /api/analyze-profiles` — Ingest candidate URLs and compile unified dossier.
+- `POST /api/scrapers/ping` — Live query test for GitHub, LeetCode, or Substack endpoints.
+- `GET  /api/analysis` — Retrieve saved candidate dossier.
 
-### Intelligence & Generation
-- `POST /api/analyze-profiles` — Ingest candidate URLs and return unified dossier.
-- `POST /api/generate-application` — Generate tailored package for target job description.
-- `POST /api/refine-draft` — Apply prompt modifiers to drafted content.
+### Generation & Optimization
+- `POST /api/generate-application` — Generate tailored application package for a target job description.
+- `POST /api/refine-draft` — Apply prompt transformations to drafted content.
+- `POST /api/resume/latex` — Generate ATS LaTeX resume code and PDF preview structure.
+- `POST /api/followup/generate` — Generate 4-stage recruiter follow-up sequence.
+- `GET  /api/jobs/:id/ics` — Download RFC 5545 `.ics` follow-up reminder file.
 
-### Applications & Jobs Management
-- `GET    /api/jobs` — List all saved job applications.
-- `GET    /api/jobs/:id` — Get single job application package.
-- `PATCH  /api/jobs/:id` — Update job application fields.
-- `PATCH  /api/jobs/:id/status` — Change job pipeline status.
-- `DELETE /api/jobs/:id` — Delete application record.
+### Job Tracker & Negotiation
+- `GET    /api/jobs` — List all tracked job applications.
+- `GET    /api/jobs/:id` — Retrieve full dossier for a specific application.
+- `PATCH  /api/jobs/:id` — Update application package or notes.
+- `PATCH  /api/jobs/:id/status` — Update pipeline stage.
+- `PATCH  /api/jobs/:id/offer` — Update offer compensation details & negotiation parameters.
+- `DELETE /api/jobs/:id` — Remove job record.
 
-### Telemetry
-- `GET /api/tasks` — List background worker task execution logs.
+### Authentication & Privacy
+- `POST   /api/auth/login` — Sign in / auto-register.
+- `POST   /api/auth/register` — Create new user profile.
+- `GET    /api/auth/me` — Get active session.
+- `GET    /api/auth/export-data` — Export user records as JSON.
+- `DELETE /api/auth/account` — Permanent account purge.
 
 ---
 
-## 🛠️ Tech Stack
+## 🛠️ Tech Stack & Dependencies
 
 - **Frontend**: React 18, TypeScript, Tailwind CSS v4, Lucide Icons, Canvas Confetti.
-- **Backend**: Express 4, Node.js, TypeScript (`tsx`).
+- **Backend Server**: Express 4, Node.js, TypeScript (`tsx`).
 - **AI Core**: Google Gemini 2.5 Flash via `@google/genai` SDK with deterministic fallback synthesis.
-- **Data Store**: Structured In-Memory database with user session tokens and JSON export.
-- **Build Tool**: Vite with esbuild bundling for single-artifact server deployment.
+- **Data Persistence**: In-Memory data store with session token management and JSON / CSV export.
+- **Build & Packaging**: Vite 6, esbuild CommonJS single-bundle compilation.
 
 ---
 
-## 🚀 Getting Started & Local Setup
+## 🚀 Local Development & Setup
 
 ### Prerequisites
 - Node.js 18.x or higher
 - npm 9.x or higher
-- A Gemini API Key (optional — pre-configured mock synthesis works out of the box)
 
-### Installation
+### Step-by-Step Setup
 
 1. **Clone the repository:**
    ```bash
@@ -247,11 +220,17 @@ The application includes a telemetry interface modeling a production background 
 
 ---
 
-## 💡 Honest Disclosures & Best Practices
+## 🤝 Contributing
 
-1. **Human-in-the-Loop Review**: OmniApply AI creates high-fidelity drafts, but you should always review every cover note, screening answer, and salary figure before submitting to employers.
-2. **Platform Terms of Service**: OmniApply AI acts as a **smart drafting assistant**. It prepares copyable text and structured packages rather than executing automated browser clicks, keeping your job board accounts safe and compliant with platform policies.
-3. **Data Privacy**: Profile URLs and generated applications are stored in your active session. You can export or purge all stored data at any time via the **User Settings → Data Privacy** menu.
+Contributions are welcome! Please review [CONTRIBUTING.md](./CONTRIBUTING.md) for details on code style, branch naming conventions, and pull request workflows.
+
+---
+
+## 💡 Honest Disclosures & Ethics
+
+1. **Human-in-the-Loop Philosophy**: OmniApply AI generates tailored materials grounded in your actual public work, but **you should always review every cover note, screening answer, and salary figure** prior to final submission.
+2. **Platform Terms Compliance**: OmniApply AI functions as a drafting and preparation engine. It does not perform unattended, automated browser clicks on job boards, ensuring account safety.
+3. **Data Privacy**: Your profile signals and applications reside in your active session. You can export or delete your data at any time via **Settings → Data Privacy**.
 
 ---
 

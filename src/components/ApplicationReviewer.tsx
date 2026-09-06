@@ -30,11 +30,14 @@ import {
   Printer,
   Calendar,
   Clock,
-  Mail
+  Mail,
+  Scale,
+  DollarSign
 } from 'lucide-react';
-import { JobApplication, ApplicationPackage, PlatformType, ScreeningQuestion, LatexResumePackage, FollowUpSequence } from '../types';
+import { JobApplication, ApplicationPackage, PlatformType, ScreeningQuestion, LatexResumePackage, FollowUpSequence, JobOfferDetails } from '../types';
 import { ResumeBuilderModal } from './ResumeBuilderModal';
 import { FollowUpSequencerModal } from './FollowUpSequencerModal';
+import { OfferCalculatorModal } from './OfferCalculatorModal';
 
 interface ApplicationReviewerProps {
   currentJob: JobApplication | null;
@@ -57,6 +60,7 @@ export const ApplicationReviewer: React.FC<ApplicationReviewerProps> = ({
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
   const [isFollowUpModalOpen, setIsFollowUpModalOpen] = useState(false);
+  const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
 
   // Draft state
   const [coverLetterDraft, setCoverLetterDraft] = useState(currentJob?.applicationPackage.coverLetter || '');
@@ -285,6 +289,14 @@ Key Recommendations: ${(pkg.atsReport?.recommendations || []).join('\n- ')}
             >
               <Mail className="h-3.5 w-3.5" />
               <span>Drip Sequencer</span>
+            </button>
+
+            <button
+              onClick={() => setIsOfferModalOpen(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-300 border border-emerald-500/30 text-xs font-semibold transition-all"
+            >
+              <Scale className="h-3.5 w-3.5" />
+              <span>Offer Calculator</span>
             </button>
 
             <button
@@ -1043,6 +1055,13 @@ Key Recommendations: ${(pkg.atsReport?.recommendations || []).join('\n- ')}
           jobId={currentJob.id}
         />
       )}
+
+      {/* Offer Negotiation & Evaluation Modal */}
+      <OfferCalculatorModal
+        isOpen={isOfferModalOpen}
+        onClose={() => setIsOfferModalOpen(false)}
+        job={currentJob}
+      />
 
     </div>
   );

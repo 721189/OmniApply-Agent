@@ -239,6 +239,71 @@ export interface LiveScrapeResult {
   error?: string;
 }
 
+export type LocationTier = 'us_tier1_sf_ny' | 'us_tier2' | 'us_remote' | 'europe_uk' | 'india_apac' | 'global_remote';
+export type SeniorityLevel = 'entry_l3' | 'mid_l4' | 'senior_l5' | 'staff_l6' | 'principal_l7';
+
+export interface CompetingOffer {
+  company: string;
+  role: string;
+  baseSalary: number;
+  equityPerYear: number;
+  signOnBonus: number;
+  totalCompensation: number;
+  currency: string;
+}
+
+export interface JobOfferDetails {
+  baseSalary: number;
+  currency: string;
+  equityGrant: number; // Total 4-year equity grant
+  equityVestingYears: number; // default 4
+  equityCliffMonths: number; // default 12
+  equityType: 'RSU' | 'Stock Options' | 'Profit Share';
+  annualBonusPercentage: number; // e.g. 10%
+  signOnBonus: number;
+  relocationAssistance?: number;
+  locationTier: LocationTier;
+  seniorityLevel: SeniorityLevel;
+  stockGrowthMultiplier?: number; // 1x, 1.5x, 2x, 3x
+  competingOffers?: CompetingOffer[];
+  customAskBase?: number;
+  customAskEquity?: number;
+  customAskSignOn?: number;
+  negotiationStrategy?: 'competing_offer' | 'top_market_percentile' | 'cash_heavy_pivot' | 'equity_upside_pivot' | 'sign_on_tradeoff';
+}
+
+export interface MarketBenchmark {
+  level: SeniorityLevel;
+  levelLabel: string;
+  region: LocationTier;
+  regionLabel: string;
+  currency: string;
+  baseP25: number;
+  baseMedian: number;
+  baseP75: number;
+  baseP90: number;
+  totalP25: number;
+  totalMedian: number;
+  totalP75: number;
+  totalP90: number;
+  equityMedian: number;
+  bonusMedianPercent: number;
+}
+
+export interface CounterOfferScript {
+  strategy: string;
+  strategyTitle: string;
+  targetAskTotal: number;
+  targetAskBase: number;
+  targetAskEquity: number;
+  targetAskSignOn: number;
+  emailSubject: string;
+  emailBody: string;
+  verbalTalkingPoints: string[];
+  keyLeveragePoints: string[];
+  fallbackWalkawayBoundary: string;
+}
+
 export interface JobApplication {
   id: string;
   userId: string;
@@ -253,6 +318,7 @@ export interface JobApplication {
   noticePeriod?: string;
   status: JobStatus;
   applicationPackage: ApplicationPackage;
+  offerDetails?: JobOfferDetails;
   notes?: string;
   appliedDate?: string;
 }

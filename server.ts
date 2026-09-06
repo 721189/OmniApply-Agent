@@ -631,6 +631,23 @@ Guidelines:
     res.send(icsContent);
   });
 
+  // --- 9. Salary Negotiation & Offer Evaluation Routes ---
+  app.patch('/api/jobs/:id/offer', (req: Request, res: Response) => {
+    try {
+      const { id } = req.params;
+      const { offerDetails } = req.body;
+      const job = db.getJob(id);
+      if (!job) {
+        return res.status(404).json({ error: 'Job not found' });
+      }
+
+      const updated = db.updateJob(id, { offerDetails });
+      res.json({ success: true, job: updated });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to update offer details' });
+    }
+  });
+
   app.delete('/api/jobs/:id', (req: Request, res: Response) => {
     const { id } = req.params;
     const deleted = db.deleteJob(id);

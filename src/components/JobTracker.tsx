@@ -21,9 +21,11 @@ import {
   DollarSign,
   MapPin,
   Check,
-  Award
+  Award,
+  Scale
 } from 'lucide-react';
-import { JobApplication, JobStatus, PlatformType } from '../types';
+import { JobApplication, JobStatus, PlatformType, JobOfferDetails } from '../types';
+import { OfferCalculatorModal } from './OfferCalculatorModal';
 
 interface JobTrackerProps {
   jobs: JobApplication[];
@@ -31,6 +33,8 @@ interface JobTrackerProps {
   onUpdateStatus: (jobId: string, status: JobStatus, notes?: string) => Promise<void>;
   onDeleteJob: (jobId: string) => Promise<void>;
   onCreateNewApplication: () => void;
+  onRefreshJobs?: () => Promise<void>;
+  candidateName?: string;
 }
 
 const STATUS_COLUMNS: { id: JobStatus; label: string; color: string }[] = [
@@ -54,6 +58,23 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('all');
   const [editingNotesJobId, setEditingNotesJobId] = useState<string | null>(null);
   const [noteInput, setNoteInput] = useState('');
+  const [selectedOfferJob, setSelectedOfferJob] = useState<JobApplication | null>(null);
+  const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
+
+  const handleSaveOfferDetails = async (jobId: string, offerDetails: JobOfferDetails) => {
+    try {
+      const res = await fetch(`/api/jobs/${jobId}/offer`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ offerDetails }),
+      });
+      if (res.ok) {
+        if (onRefreshJobs) await onRefreshJobs();
+      }
+    } catch (err) {
+      console.error('Failed to update offer details:', err);
+    }
+  };
 
   // Filter jobs
   const filteredJobs = jobs.filter((job) => {
@@ -269,41 +290,68 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                       </div>
 
                       {/* Status Shifter dropdown */}
-                      <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between" onClick={(e) => e.stopPropagation()}>
-                        <select
-                          value={job.status}
-                          onChange={(e) => onUpdateStatus(job.id, e.target.value as JobStatus)}
-                          className="bg-slate-950 border border-slate-800 text-[10px] text-slate-300 rounded-lg px-2 py-1 focus:outline-none"
-                        >
-                          <option value="draft">Draft</option>
-                          <option value="prepared">Prepared</option>
-                          <option value="applied">Applied</option>
-                          <option value="interviewing">Interviewing</option>
-                          <option value="offer">Offer Received</option>
-                          <option value="archived">Archived</option>
-                        </select>
-
-                        <div className="flex items-center gap-1.5">
-                          <a
-                            href={`/api/jobs/${job.id}/ics`}
-                            download
-                            className="text-slate-500 hover:text-purple-400 p-1 transition-colors"
-                            title="Download Recruiter Follow-up .ICS Calendar"
-                          >
-                            <Calendar className="h-3.5 w-3.5" />
-                          </a>
+                      <div className="pt-2 border-t border-slate-800/80 space-y-2" onClick={(e) => e.stopPropagation()}>
+                        
+                        {/* Offer received highlight button */}
+                        {job.status === 'offer' && (
                           <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (window.confirm(`Delete application for ${job.companyName}?`)) {
-                                onDeleteJob(job.id);
-                              }
+                            onClick={() => {
+                              setSelectedOfferJob(job);
+                              setIsOfferModalOpen(true);
                             }}
-                            className="text-slate-600 hover:text-rose-400 p-1"
-                            title="Delete Application"
+                            className="w-full flex items-center justify-center gap-1.5 py-1.5 px-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-[11px] font-bold transition shadow-sm"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <Scale className="h-3.5 w-3.5" />
+                            <span>Evaluate & Negotiate Offer</span>
                           </button>
+                        )}
+
+                        <div className="flex items-center justify-between">
+                          <select
+                            value={job.status}
+                            onChange={(e) => onUpdateStatus(job.id, e.target.value as JobStatus)}
+                            className="bg-slate-950 border border-slate-800 text-[10px] text-slate-300 rounded-lg px-2 py-1 focus:outline-none"
+                          >
+                            <option value="draft">Draft</option>
+                            <option value="prepared">Prepared</option>
+                            <option value="applied">Applied</option>
+                            <option value="interviewing">Interviewing</option>
+                            <option value="offer">Offer Received</option>
+                            <option value="archived">Archived</option>
+                          </select>
+
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={() => {
+                                setSelectedOfferJob(job);
+                                setIsOfferModalOpen(true);
+                              }}
+                              className="text-slate-500 hover:text-emerald-400 p-1 transition-colors"
+                              title="Salary & Offer Negotiation Calculator"
+                            >
+                              <Scale className="h-3.5 w-3.5" />
+                            </button>
+                            <a
+                              href={`/api/jobs/${job.id}/ics`}
+                              download
+                              className="text-slate-500 hover:text-purple-400 p-1 transition-colors"
+                              title="Download Recruiter Follow-up .ICS Calendar"
+                            >
+                              <Calendar className="h-3.5 w-3.5" />
+                            </a>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (window.confirm(`Delete application for ${job.companyName}?`)) {
+                                  onDeleteJob(job.id);
+                                }
+                              }}
+                              className="text-slate-600 hover:text-rose-400 p-1"
+                              title="Delete Application"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -375,6 +423,18 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                     </td>
                     <td className="p-4 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-2">
+                        {job.status === 'offer' && (
+                          <button
+                            onClick={() => {
+                              setSelectedOfferJob(job);
+                              setIsOfferModalOpen(true);
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-emerald-600/20 text-emerald-300 hover:bg-emerald-600 hover:text-white transition-all text-xs font-semibold flex items-center gap-1"
+                          >
+                            <Scale className="h-3 w-3" />
+                            Negotiate
+                          </button>
+                        )}
                         <button
                           onClick={() => onSelectJob(job)}
                           className="px-2.5 py-1 rounded-lg bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600 hover:text-white transition-all text-xs font-semibold"
@@ -400,6 +460,18 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
           </div>
         </div>
       )}
+
+      {/* Offer Negotiation & Evaluation Modal */}
+      <OfferCalculatorModal
+        isOpen={isOfferModalOpen}
+        onClose={() => {
+          setIsOfferModalOpen(false);
+          setSelectedOfferJob(null);
+        }}
+        job={selectedOfferJob}
+        onSaveOfferDetails={handleSaveOfferDetails}
+        candidateName={candidateName}
+      />
 
     </div>
   );
