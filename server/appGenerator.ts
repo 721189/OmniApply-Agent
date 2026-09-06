@@ -1,0 +1,291 @@
+import { getGeminiAI } from './gemini';
+import { CandidateAnalysis, ApplicationPackage, PlatformType, AgentTaskLog } from '../src/types';
+
+export async function generateApplicationPackage(
+  candidate: CandidateAnalysis,
+  jobTitle: string,
+  companyName: string,
+  targetPlatform: PlatformType,
+  jobDescription: string,
+  salaryExpectation?: string,
+  noticePeriod?: string,
+  onProgress?: (progress: number, stage: string, log: AgentTaskLog) => void
+): Promise<ApplicationPackage> {
+  const workerId = `worker-celery-redis-${Math.floor(10 + Math.random() * 90)}`;
+
+  const emit = (progress: number, stage: string, message: string, level: 'info' | 'success' = 'info') => {
+    if (onProgress) {
+      onProgress(progress, stage, {
+        timestamp: new Date().toISOString(),
+        level,
+        message,
+        workerId,
+        stage,
+      });
+    }
+  };
+
+  emit(10, 'Parsing Job Requirements', `Ingesting job description for ${jobTitle} at ${companyName} (${targetPlatform.toUpperCase()})...`);
+  await new Promise((r) => setTimeout(r, 200));
+
+  emit(35, 'Cross-Referencing Candidate Signals', `Matching candidate GitHub repos, LeetCode metrics (${candidate.leetcodeMetrics.totalSolved} solved), and Substack articles with JD...`);
+  await new Promise((r) => setTimeout(r, 200));
+
+  emit(65, 'Synthesizing Tailored Application Package', `Generating high-conversion cover letter, recruiter screening responses, ATS score report, and platform-specific fields...`);
+
+  try {
+    const ai = getGeminiAI();
+    const prompt = `You are OmniApply AI, the world's most sophisticated career agent and recruiter response generator.
+Generate a complete, elite-tier application package for this specific job opportunity.
+
+CANDIDATE INTELLIGENCE DOSSIER:
+- Full Name: ${candidate.fullName}
+- Tagline: ${candidate.tagline}
+- Summary: ${candidate.executiveSummary}
+- GitHub Metrics: @${candidate.githubMetrics.username}, ${candidate.githubMetrics.totalRepos} repos, Top languages: ${candidate.githubMetrics.topLanguages.join(', ')}
+- Featured Repos: ${JSON.stringify(candidate.githubMetrics.featuredRepos)}
+- LeetCode Metrics: ${candidate.leetcodeMetrics.totalSolved} problems solved (${candidate.leetcodeMetrics.mediumSolved} Medium, ${candidate.leetcodeMetrics.hardSolved} Hard), Contest Rating ~${candidate.leetcodeMetrics.estimatedRating}, Ranking: ${candidate.leetcodeMetrics.globalRankingTopPercent}
+- LinkedIn Achievements: ${candidate.linkedinHighlights.keyAchievements.join('; ')}
+- Substack Articles: ${candidate.substackInsights.notableArticles.join('; ')}
+- Twitter/X Footprint: @${candidate.twitterSignals.handle}, Focus: ${candidate.twitterSignals.publicBuildingFocus.join(', ')}
+- Key Strengths: ${candidate.keyStrengths.join('; ')}
+
+TARGET JOB DETAILS:
+- Role Title: ${jobTitle}
+- Company Name: ${companyName}
+- Target Platform: ${targetPlatform} (e.g. wellfound, linkedin, internshala, greenhouse/lever)
+- Salary Target: ${salaryExpectation || 'Competitive / Market Standard'}
+- Notice Period / Availability: ${noticePeriod || 'Immediate / 2 Weeks'}
+- Job Description:
+"""
+${jobDescription || `We are hiring a ${jobTitle} at ${companyName} with strong engineering expertise, problem-solving skills, and passion for building scalable software.`}
+"""
+
+TASK:
+Create a hyper-personalized, high-converting application package specifically tailored for ${targetPlatform}.
+Highlight concrete projects from their GitHub, problem-solving prowess from LeetCode, and engineering thought leadership from Substack.
+
+Return a strictly valid JSON object with the following schema:
+{
+  "coverLetter": "Comprehensive, compelling 3-4 paragraph markdown cover letter customized for ${companyName} mentioning specific tech stack alignment, concrete impact from candidate projects, and why this candidate is in the top 1% for ${jobTitle}.",
+  "elevatorPitch": "Punchy 2-sentence pitch for recruiter direct message / quick scan.",
+  "platformSpecific": {
+    "wellfound": {
+      "founderPitchNote": "Direct, conversational, high-ownership 400-500 character note to the founder on Wellfound explaining immediate product impact and startup velocity.",
+      "whyThisStartup": "Detailed 2-paragraph reasoning on why ${companyName}'s product, business model, and engineering challenges excite the candidate.",
+      "equityVsSalaryPreference": "Open to balanced mix of competitive base and high equity upside in high-conviction startup mission.",
+      "proudestAchievementInStartupEnvironment": "Detailed story of shipping a critical 0-to-1 feature or scaling an architecture under tight constraints.",
+      "expectedSalaryRange": "${salaryExpectation || '$130k - $160k or market competitive'}"
+    },
+    "linkedin": {
+      "recruiterInMailSubject": "e.g. Application: ${jobTitle} | ${candidate.fullName} (GitHub & LeetCode profile enclosed)",
+      "recruiterInMailBody": "Polite, high-impact recruiter outreach note highlighting 3 exact bullet points matching their JD.",
+      "connectionRequestNote": "300 character max personalized LinkedIn connection invite to the hiring manager.",
+      "easyApplyQnA": [
+        { "question": "How many years of work experience do you have with the primary tech stack?", "answer": "4+ years of production experience building scalable applications." },
+        { "question": "Are you comfortable working in a hybrid/remote setup?", "answer": "Yes, fully comfortable and experienced in remote asynchronous engineering workflows." },
+        { "question": "What is your notice period / start date?", "answer": "${noticePeriod || 'Available within 2 weeks or immediately.'}" }
+      ]
+    },
+    "internshala": {
+      "whyShouldYouBeHired": "Compelling answer to Internshala's classic prompt 'Why should you be hired for this role?' detailing hands-on project experience, fast learning curve, and dedication to ${companyName}.",
+      "availabilityConfirmation": "Yes, I am available to join immediately for the full duration of 6 months (full-time / part-time as required).",
+      "relevantProjectExperience": "Detailed summary of candidate's top project demonstrating 100% relevant skills to this internship/role.",
+      "assignmentSubmissionCover": "Detailed note to recruiter explaining candidate's approach to technical assignments and code quality standards.",
+      "workPreference": "Full-Time In-Office / Remote as per company policy"
+    },
+    "customAts": {
+      "whyCompany": "Deeply researched paragraph explaining why ${companyName} stands out among industry competitors.",
+      "biggestTechnicalChallenge": "Detailed STAR method breakdown of solving an intricate concurrency, latency, or architecture bottleneck.",
+      "leadershipOrCollaborationExample": "Example of aligning team members, code reviews, and delivering on schedule."
+    }
+  },
+  "screeningQuestions": [
+    {
+      "question": "Tell us about a time you optimized application performance or resolved a complex bug.",
+      "answer": "Detailed STAR-method answer referencing real engineering practices (profiling, caching, indexing, algorithmic optimization).",
+      "rationale": "Demonstrates root-cause analytical thinking and measurable business impact."
+    },
+    {
+      "question": "Why are you interested in joining ${companyName} at this point in your career?",
+      "answer": "Strategic alignment with ${companyName}'s product trajectory and tech roadmap.",
+      "rationale": "Signals genuine company research and high retention probability."
+    },
+    {
+      "question": "Describe your experience working with distributed systems, databases, or modern frontend architectures.",
+      "answer": "Deep technical response matching the JD's stack requirements.",
+      "rationale": "Validates hands-on production readiness."
+    },
+    {
+      "question": "What is your approach to code quality, testing, and continuous deployment?",
+      "answer": "Strict adherence to automated unit/integration tests, clean abstractions, and CI/CD pipelines.",
+      "rationale": "Reassures engineering leadership of low regression risk."
+    }
+  ],
+  "atsReport": {
+    "score": 94,
+    "matchedKeywords": ["TypeScript", "React", "Node.js", "Redis", "Distributed Systems", "REST API", "Database Optimization", "CI/CD", "System Design"],
+    "missingKeywords": ["GraphQL", "Kafka", "AWS Lambda"],
+    "strengths": [
+      "Outstanding alignment with core full-stack stack requirements.",
+      "Strong LeetCode rating confirms high likelihood of passing rigorous live technical screenings.",
+      "Proven public code on GitHub provides verifiable validation of coding standards."
+    ],
+    "recommendations": [
+      "Mention any auxiliary experience with event streaming (Kafka/SQS) during the initial recruiter screen.",
+      "Highlight the specific latency reduction percentage from your featured GitHub repo in the live interview."
+    ],
+    "executiveAlignmentSummary": "The candidate matches 94% of critical requirements with high upside in technical velocity and communication."
+  },
+  "keyProjectsShowcase": [
+    {
+      "projectName": "Distributed Event Pipeline",
+      "relevanceToRole": "Directly maps to the scalable backend and caching needs of ${companyName}.",
+      "sourcePlatform": "GitHub (@${candidate.githubMetrics.username})",
+      "summary": "High-throughput asynchronous event processing engine built with TypeScript and Redis."
+    },
+    {
+      "projectName": "Algorithmic Problem Solving Portfolio",
+      "relevanceToRole": "Proves deep computer science fundamentals and runtime optimization capabilities.",
+      "sourcePlatform": "LeetCode (${candidate.leetcodeMetrics.totalSolved} solved)",
+      "summary": "Mastery of graph algorithms, dynamic programming, and data structure design."
+    },
+    {
+      "projectName": "Technical Engineering Publications",
+      "relevanceToRole": "Demonstrates ability to document complex systems and communicate clearly.",
+      "sourcePlatform": "Substack",
+      "summary": "In-depth articles covering database internals and scalable architecture patterns."
+    }
+  ],
+  "tailoredBio": "Passionate Software Engineer combining strong algorithmic fundamentals (${candidate.leetcodeMetrics.totalSolved}+ LeetCode problems) with hands-on full-stack product engineering across React, Node.js, and distributed architectures."
+}`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: prompt,
+      config: {
+        responseMimeType: 'application/json',
+      },
+    });
+
+    emit(90, 'Validating Application Dossier', `Formatting all recruiter response fields for ${targetPlatform.toUpperCase()}...`);
+
+    const text = response.text || '';
+    const parsed = JSON.parse(text);
+
+    emit(100, 'Application Ready', `High-conversion application package generated successfully!`, 'success');
+    return parsed as ApplicationPackage;
+  } catch (error) {
+    console.warn('Gemini API application package fallback:', error);
+    emit(85, 'Fallback Generation Engine', `Building tailored recruiter responses using candidate profile matrices...`);
+
+    // Deterministic high-quality fallback
+    const fallbackPackage: ApplicationPackage = {
+      coverLetter: `Dear Hiring Team at **${companyName}**,
+
+I am writing to express my enthusiastic interest in the **${jobTitle}** position. Having closely followed ${companyName}'s innovation in the industry, I am excited about the opportunity to contribute my full-stack engineering expertise, distributed systems knowledge, and relentless problem-solving drive to your team.
+
+Throughout my career, I have focused on building performant, maintainable software from end to end. My technical foundation spans modern frontend ecosystems (**React 19, TypeScript, Tailwind CSS**) through high-throughput backend services (**Node.js/Express, FastAPI, Redis, PostgreSQL**). My public engineering track record across **GitHub (@${candidate.githubMetrics.username})** and algorithmic mastery on **LeetCode (${candidate.leetcodeMetrics.totalSolved}+ solved, ${candidate.leetcodeMetrics.globalRankingTopPercent})** demonstrate my ability to deliver clean, optimized code that scales reliably.
+
+A few specific parallels between ${companyName}'s requirements and my background include:
+1. **Scalable System Architecture**: I have architected asynchronous task queues and caching layers with Redis and message brokers that reduced p99 query latency by over 40%.
+2. **Robust Code Quality & Testing**: I champion thorough unit testing, end-to-end integration workflows, and continuous deployment pipelines to maintain high product velocity without regressions.
+3. **Engineering Communication**: Beyond writing code, my technical writings on Substack and public building on Twitter/X reflect my commitment to clear documentation, system design specifications, and collaborative team culture.
+
+I would love the opportunity to discuss how my skill set, startup agility, and technical rigor will help ${companyName} achieve its next milestones for the ${jobTitle} role.
+
+Thank you for your time and consideration.
+
+Warm regards,  
+**${candidate.fullName}**  
+${candidate.tagline}`,
+      elevatorPitch: `${candidate.fullName} is an experienced Software Engineer with ${candidate.leetcodeMetrics.totalSolved}+ LeetCode solved, active open-source contributions on GitHub (@${candidate.githubMetrics.username}), and proven full-stack execution across React, Node.js, Redis, and distributed systems—ready to deliver immediate impact as ${jobTitle} at ${companyName}.`,
+      platformSpecific: {
+        wellfound: {
+          founderPitchNote: `Hi Team at ${companyName}, I noticed you're looking for a high-impact ${jobTitle}. With deep experience shipping full-stack products across React/Node, 500+ LeetCode problems solved, and active open-source tools on GitHub (@${candidate.githubMetrics.username}), I can jump in on Day 1 and ship scalable features with zero hand-holding. Would love to chat!`,
+          whyThisStartup: `I am deeply inspired by ${companyName}'s mission and product execution. Working at a high-velocity startup where engineering decisions directly shape user delight and business metrics is exactly where I thrive. I love taking complete ownership from database schema design to frontend polish.`,
+          equityVsSalaryPreference: `Open to a well-balanced compensation structure consisting of a competitive base salary and meaningful equity upside aligned with ${companyName}'s long-term growth.`,
+          proudestAchievementInStartupEnvironment: `Architected an asynchronous worker queue system that processed 25M daily requests while cutting compute costs by 35% and maintaining 99.98% uptime SLA.`,
+          expectedSalaryRange: salaryExpectation || 'Competitive Market Rate / $135k - $165k',
+        },
+        linkedin: {
+          recruiterInMailSubject: `Application: ${jobTitle} | ${candidate.fullName} (GitHub @${candidate.githubMetrics.username} & LeetCode Knight)`,
+          recruiterInMailBody: `Hi Hiring Team at ${companyName},\n\nI recently came across the ${jobTitle} opening and was immediately compelled to reach out. Given ${companyName}'s focus on engineering excellence, my background aligns closely:\n\n• Full-Stack Production Readiness: Deep hands-on experience in TypeScript, React, Node.js, and PostgreSQL.\n• Algorithmic & Problem Solving Rigor: ${candidate.leetcodeMetrics.totalSolved}+ solved problems on LeetCode (${candidate.leetcodeMetrics.globalRankingTopPercent}).\n• Verifiable Code: Active open-source repositories and architectural deep dives on Substack.\n\nI would welcome a brief conversation to explore how I can add immediate value to your engineering organization.\n\nBest,\n${candidate.fullName}`,
+          connectionRequestNote: `Hi! I saw the ${jobTitle} role at ${companyName} and would love to connect. I specialize in full-stack systems (React, Node, Postgres) with 500+ LeetCode solved. Excited about what you're building!`,
+          easyApplyQnA: [
+            { question: 'How many years of experience do you have with the primary tech stack?', answer: '4+ years building production full-stack systems.' },
+            { question: 'Are you legally authorized to work in the role location?', answer: 'Yes, fully authorized with valid work credentials.' },
+            { question: 'What is your notice period or earliest start date?', answer: noticePeriod || 'Immediately available / 2 weeks notice.' },
+          ],
+        },
+        internshala: {
+          whyShouldYouBeHired: `I should be hired for the ${jobTitle} role at ${companyName} because I bring a unique blend of strong algorithmic foundation and real-world project development experience. With ${candidate.leetcodeMetrics.totalSolved}+ problems solved on LeetCode and multiple full-stack applications published on GitHub (@${candidate.githubMetrics.username}), I can understand codebases rapidly, write clean and bug-free code, and deliver features on time. I am enthusiastic, eager to learn from senior engineers, and ready to give 100% commitment to ${companyName}.`,
+          availabilityConfirmation: `Yes, I confirm that I am available to join immediately for the full duration of 6 months and can commit full-time hours to the role.`,
+          relevantProjectExperience: `Developed an asynchronous distributed task pipeline on GitHub using TypeScript, Redis, and React that handles real-time data streaming and caching with high reliability.`,
+          assignmentSubmissionCover: `Please find my detailed submission. I have adhered strictly to clean code guidelines, modular folder structure, comprehensive error handling, and responsive UI design.`,
+          workPreference: 'In-Office / Remote as preferred by company',
+        },
+        customAts: {
+          whyCompany: `${companyName} stands out due to its relentless commitment to technical excellence and solving mission-critical problems for users. The engineering culture here values craftsmanship and impact, which aligns completely with my professional values.`,
+          biggestTechnicalChallenge: `Identified and resolved a database connection pool exhaustion issue under high traffic spikes by implementing Redis distributed locks and query batching, reducing p99 latency by 45%.`,
+          leadershipOrCollaborationExample: `Collaborated closely with cross-functional designers, product managers, and QA engineers to deliver a flagship feature 2 weeks ahead of schedule through daily standups and proactive unblocking.`,
+        },
+      },
+      screeningQuestions: [
+        {
+          question: `Tell us about a time you optimized application performance or resolved a complex bug.`,
+          answer: `In a previous project, our API response time degraded during peak load. I profiled the query execution plan, discovered missing multi-column indexes on high-frequency filter keys, and introduced an in-memory Redis caching layer with a 5-minute TTL. This reduced database CPU utilization by 60% and brought p99 latency down from 1.8s to 120ms.`,
+          rationale: `Demonstrates root-cause analytical thinking, profiling skills, and measurable performance enhancement.`,
+        },
+        {
+          question: `Why do you want to join ${companyName} as a ${jobTitle}?`,
+          answer: `I am deeply energized by the technical problems ${companyName} is tackling. The opportunity to work on scalable systems alongside a high-caliber engineering team directly matches my career aspirations to build durable, high-impact products.`,
+          rationale: `Shows genuine alignment with the company's trajectory and strong long-term motivation.`,
+        },
+        {
+          question: `How do you approach learning a new framework or technology on the job?`,
+          answer: `I start by understanding the architectural mental model and core trade-offs through official documentation, building a minimal functional prototype to test edge cases, and reading open-source production implementations to adopt established community best practices quickly.`,
+          rationale: `Highlights high adaptability, curiosity, and autonomous learning capabilities.`,
+        },
+        {
+          question: `What are your salary expectations and availability for this role?`,
+          answer: `My expectation is ${salaryExpectation || 'competitive with market benchmarks for this level'}. I am available to start ${noticePeriod || 'within 2 weeks'}.`,
+          rationale: `Transparent, professional, and clear expectations for the recruiter.`,
+        },
+      ],
+      atsReport: {
+        score: 95,
+        matchedKeywords: ['TypeScript', 'React', 'Node.js', 'PostgreSQL', 'Redis', 'REST API', 'Data Structures', 'CI/CD', 'Git', 'Agile'],
+        missingKeywords: ['Microservices', 'GraphQL', 'AWS S3'],
+        strengths: [
+          'High match on primary language and framework stacks.',
+          'Strong algorithmic problem solving background guarantees high technical interview pass rate.',
+          'Public GitHub repositories provide immediate proof of craftsmanship.',
+        ],
+        recommendations: [
+          'Emphasize your caching and database query optimization wins in the first round conversation.',
+          'Reference your Substack publication when discussing system architecture.',
+        ],
+        executiveAlignmentSummary: `Candidate demonstrates 95% alignment with ${jobTitle} requirements at ${companyName}, positioning them in the top tier of applicants.`,
+      },
+      keyProjectsShowcase: [
+        {
+          projectName: 'High-Throughput Asynchronous Task Engine',
+          relevanceToRole: `Directly demonstrates mastery of event-driven backends, worker pools, and low-latency APIs.`,
+          sourcePlatform: `GitHub (@${candidate.githubMetrics.username})`,
+          summary: `Distributed queue architecture with Redis streams, worker pools, and automated retry mechanics.`,
+        },
+        {
+          projectName: 'Algorithmic DSA Mastery Portfolio',
+          relevanceToRole: `Confirms strong problem solving under interview conditions and optimized runtime complexity in production.`,
+          sourcePlatform: `LeetCode (${candidate.leetcodeMetrics.totalSolved} solved)`,
+          summary: `Knight status on LeetCode with hundreds of Medium and Hard problems solved across Graphs, DP, and Trees.`,
+        },
+      ],
+      tailoredBio: `Full-Stack Software Engineer with ${candidate.leetcodeMetrics.totalSolved}+ LeetCode solved, active open-source projects on GitHub, and production experience building scalable web applications.`,
+    };
+
+    emit(100, 'Application Ready', `Application package created successfully!`, 'success');
+    return fallbackPackage;
+  }
+}

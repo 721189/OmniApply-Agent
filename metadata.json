@@ -1,0 +1,6 @@
+{
+  "name": "OmniApply AI - Autonomous Career Agent & Application Engine",
+  "description": "Multi-platform intelligence personal AI agent that analyzes LinkedIn, GitHub, LeetCode, Substack, and Twitter/X profiles to generate high-conversion application dossiers, customized recruiter screening responses, tailored pitches, and ATS optimization for Wellfound, LinkedIn, Internshala, and more.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
