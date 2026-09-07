@@ -235,5 +235,5 @@ Contributions are welcome! Please review [CONTRIBUTING.md](./CONTRIBUTING.md) fo
 ---
 
 <div align="center">
-  <sub>Built with ❤️ by Shivam Singh using Google AI Studio & Gemini 2.5 Flash.</sub>
+  <sub>Built with ❤️ by Shivam Singh.</sub>
 </div>
