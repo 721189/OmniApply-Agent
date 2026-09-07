@@ -69,28 +69,38 @@ export async function createApp() {
     const windowBucket = Math.floor(now / (windowSeconds * 1000));
     const rateLimitKey = `ratelimit:${ip}:${req.path.split('/')[1] || 'api'}:${windowBucket}`;
 
-    // 1. Upstash Redis Atomic Pipeline execution (INCR + EXPIRE in one atomic roundtrip)
+    // 1. Upstash Redis Atomic Server-Side Lua Script execution (Atomic INCR + EXPIRE)
     const upstashUrl = process.env.UPSTASH_REDIS_REST_URL;
     const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
 
     if (upstashUrl && upstashToken) {
       try {
-        const pipelineRes = await fetch(`${upstashUrl}/pipeline`, {
+        const luaScript = `
+          local current = redis.call('INCR', KEYS[1])
+          if tonumber(current) == 1 then
+            redis.call('EXPIRE', KEYS[1], ARGV[1])
+          end
+          return current
+        `;
+        const evalRes = await fetch(upstashUrl, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${upstashToken}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify([
-            ['INCR', rateLimitKey],
-            ['EXPIRE', rateLimitKey, windowSeconds * 2],
+            'EVAL',
+            luaScript,
+            1,
+            rateLimitKey,
+            String(windowSeconds * 2),
           ]),
         });
 
-        if (pipelineRes.ok) {
-          const results: any = await pipelineRes.json();
-          // results = [{ result: 1 }, { result: 1 }]
-          const currentCount = Number(results[0]?.result || 1);
+        if (evalRes.ok) {
+          const evalData: any = await evalRes.json();
+          // evalData = { result: 1 }
+          const currentCount = Number(evalData?.result || 1);
           const remaining = Math.max(0, limit - currentCount);
           const resetTime = (windowBucket + 1) * windowSeconds;
 
@@ -219,7 +229,6 @@ export async function createApp() {
     setSessionCookie(res, result.token);
     res.json({
       user: result.user,
-      token: result.token,
       message: 'Login successful',
     });
   });
@@ -241,7 +250,6 @@ export async function createApp() {
     const emailDispatch = await sendVerificationEmail(email, result.code, name || email.split('@')[0]);
     res.json({
       user: result.user,
-      token: result.token,
       emailDispatched: emailDispatch.success,
       emailProvider: emailDispatch.provider,
       message: 'Account registered successfully! Verification code dispatched to ' + email,

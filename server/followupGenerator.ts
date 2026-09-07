@@ -9,9 +9,16 @@ export function generateFollowUpSequence(
   companyName: string,
   targetPlatform: string = 'linkedin'
 ): FollowUpSequence {
-  const candidateName = candidate.fullName || 'Alex Chen';
-  const starRepo = candidate.githubMetrics?.featuredRepos?.[0]?.repoName || 'distributed-cache';
-  const starTech = candidate.githubMetrics?.topLanguages?.[0] || 'TypeScript';
+  const candidateName = candidate.fullName || 'Candidate';
+  const starRepo = candidate.githubMetrics?.featuredRepos?.[0]?.repoName || candidate.portfolioDetails?.projects?.[0]?.name || '';
+  const starTech = candidate.githubMetrics?.topLanguages?.[0] || candidate.skillsMatrix?.[0]?.skills?.[0] || 'TypeScript';
+
+  const repoMention = starRepo ? ` (including work on ${starRepo})` : '';
+  const projectLink = candidate.githubMetrics?.username
+    ? `\nPortfolio / GitHub: https://github.com/${candidate.githubMetrics.username}`
+    : candidate.portfolioDetails?.url
+    ? `\nPortfolio: ${candidate.portfolioDetails.url}`
+    : '';
 
   const emails: FollowUpEmail[] = [
     {
@@ -22,15 +29,14 @@ export function generateFollowUpSequence(
       subject: `Application for ${jobTitle} -- ${candidateName}`,
       body: `Hi Team at ${companyName},
 
-I recently submitted my application for the ${jobTitle} opening. With my background in ${starTech} and distributed systems (including open-source work on ${starRepo}), I've been following ${companyName}'s work and would love the opportunity to contribute to your engineering team.
+I recently submitted my application for the ${jobTitle} opening. With my background in ${starTech}${repoMention}, I've been following ${companyName}'s work and would love the opportunity to contribute to your engineering team.
 
 I’ve summarized my background and key projects here for quick reference. Looking forward to hearing your thoughts!
 
 Best regards,
-${candidateName}
-Portfolio / GitHub: https://github.com/${candidate.githubMetrics?.username || 'alexchen-dev'}`,
+${candidateName}${projectLink}`,
       callToAction: 'Confirm application receipt and schedule initial screening call.',
-      valueAddHook: `Direct reference to ${starTech} codebase and alignment with role requirements.`,
+      valueAddHook: `Direct reference to ${starTech} background and alignment with role requirements.`,
     },
     {
       stage: 'day4_polite_touchpoint',
@@ -42,7 +48,7 @@ Portfolio / GitHub: https://github.com/${candidate.githubMetrics?.username || 'a
 
 I wanted to quickly follow up on the ${jobTitle} application I submitted earlier this week. 
 
-I understand you likely receive a high volume of candidates, but I wanted to reiterate my strong enthusiasm for ${companyName}. Since applying, I've been exploring your recent engineering updates and noticed some exciting parallels with problems I solved while architecting ${starRepo}.
+I understand you likely receive a high volume of candidates, but I wanted to reiterate my strong enthusiasm for ${companyName}. Since applying, I've been exploring your recent engineering updates and noticed some exciting parallels with problems I solve when engineering ${starTech} architectures.
 
 If you have 10-15 minutes in the coming days, I'd love to introduce myself and discuss how my skill set can support your upcoming milestones.
 
@@ -61,9 +67,7 @@ ${candidateName}`,
 
 Hope you're having a productive week. 
 
-While thinking about the ${jobTitle} position, I put together a quick technical prototype / architecture outline demonstrating how to optimize event throughput and reduce API latency using ${starTech} and Redis. 
-
-I've documented the key insights here: https://github.com/${candidate.githubMetrics?.username || 'alexchen-dev'}/${starRepo}
+While thinking about the ${jobTitle} position, I put together a quick technical architectural outline demonstrating how to optimize service throughput and maintain reliable execution with modern ${starTech} patterns.
 
 Regardless of where you are in the hiring process, I hope this provides some value to your team. Happy to chat if you’d like to walk through the implementation!
 
@@ -82,13 +86,13 @@ ${candidateName}`,
 
 I know how busy the engineering and recruiting calendars get, so I assume now might not be the optimal time to move forward for the ${jobTitle} position.
 
-I’ll plan on closing the loop on my end, but I remain a huge supporter of ${companyName} and would love to stay connected on LinkedIn (linkedin.com/in/alexchen-dev) for future opportunities down the road.
+I’ll plan on closing the loop on my end, but I remain a huge supporter of ${companyName} and would love to stay connected for future opportunities down the road.
 
 Wishing you and the team continued success!
 
 Best regards,
 ${candidateName}`,
-      callToAction: 'Establish a lasting professional network connection on LinkedIn with zero pressure.',
+      callToAction: 'Establish a lasting professional network connection with zero pressure.',
       valueAddHook: 'Professional, low-friction closing that leaves a memorable positive impression.',
     },
   ];
