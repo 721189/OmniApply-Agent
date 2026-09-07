@@ -33,7 +33,15 @@ export default function App() {
   const [isCopilotOpen, setIsCopilotOpen] = useState<boolean>(false);
   
   // Profile URLs state - default to first rich preset
-  const [urls, setUrls] = useState<ProfileUrls>(SAMPLE_PROFILE_PRESETS[0].urls);
+  const [urls, setUrls] = useState<ProfileUrls>(
+    SAMPLE_PROFILE_PRESETS?.[0]?.urls || {
+      linkedin: '',
+      github: '',
+      leetcode: '',
+      substack: '',
+      twitter: '',
+    }
+  );
   const [analysis, setAnalysis] = useState<CandidateAnalysis | null>(DEFAULT_SAMPLE_ANALYSIS);
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [activeTask, setActiveTask] = useState<AgentTask | null>(null);

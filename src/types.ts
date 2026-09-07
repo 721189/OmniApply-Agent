@@ -123,6 +123,23 @@ export interface CandidateAnalysis {
   };
 }
 
+export interface SampleProfilePreset {
+  id: string;
+  name: string;
+  role: string;
+  urls: ProfileUrls;
+  analysis?: CandidateAnalysis;
+}
+
+export interface SampleJobPreset {
+  id: string;
+  title: string;
+  company: string;
+  platform: PlatformType;
+  salary: string;
+  description: string;
+}
+
 export interface ScreeningQuestion {
   question: string;
   answer: string;

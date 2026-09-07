@@ -26,9 +26,9 @@ import {
   Sliders,
   AlertCircle
 } from 'lucide-react';
-import { ProfileUrls, CandidateAnalysis, AgentTask } from '../types';
+import { ProfileUrls, CandidateAnalysis, AgentTask, SampleProfilePreset } from '../types';
 import { apiFetch } from '../utils/apiClient';
-import { SAMPLE_PROFILE_PRESETS, SampleProfilePreset } from '../data/mockProfiles';
+import { SAMPLE_PROFILE_PRESETS } from '../data/mockProfiles';
 
 interface ProfileHubProps {
   urls: ProfileUrls;

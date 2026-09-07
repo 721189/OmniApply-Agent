@@ -15,8 +15,8 @@ import {
   Cpu, 
   HelpCircle
 } from 'lucide-react';
-import { PlatformType, CandidateAnalysis, AgentTask } from '../types';
-import { SAMPLE_JOB_PRESETS, SampleJobPreset } from '../data/mockProfiles';
+import { PlatformType, CandidateAnalysis, AgentTask, SampleJobPreset } from '../types';
+import { SAMPLE_JOB_PRESETS } from '../data/mockProfiles';
 
 interface JobStudioProps {
   analysis: CandidateAnalysis | null;
@@ -47,7 +47,7 @@ export const JobStudio: React.FC<JobStudioProps> = ({
   const [salaryExpectation, setSalaryExpectation] = useState('$140,000 – $180,000 + Equity');
   const [noticePeriod, setNoticePeriod] = useState('Immediate / 2 Weeks');
   const [jobDescription, setJobDescription] = useState(
-    SAMPLE_JOB_PRESETS[0].description
+    SAMPLE_JOB_PRESETS?.[0]?.description || ''
   );
 
   const handleApplyJobPreset = (preset: SampleJobPreset) => {
