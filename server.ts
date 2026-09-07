@@ -48,14 +48,17 @@ async function startServer() {
     next();
   });
 
-  // Helper to extract auth user (Strict Token Validation - No implicit fallbacks)
+  // Helper to extract auth user (Strict Token Validation - Sanitized user record)
   const getUserFromReq = async (req: Request) => {
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
       const userId = await db.getUserIdFromToken(token);
       if (userId) {
-        return await db.getUserById(userId);
+        const user = await db.getUserById(userId);
+        if (user) {
+          return db.sanitizeUser(user);
+        }
       }
     }
     return null;
@@ -129,7 +132,7 @@ async function startServer() {
     const success = await db.verifyEmail(email, code);
     if (success) {
       const user = await db.getUserByEmail(email);
-      res.json({ success: true, user, message: 'Email verified successfully!' });
+      res.json({ success: true, user: user ? db.sanitizeUser(user) : null, message: 'Email verified successfully!' });
     } else {
       res.status(400).json({ error: 'Invalid verification code.' });
     }
@@ -193,9 +196,11 @@ async function startServer() {
   // --- 3. Profile Ingestion & Deep Analysis Routes ---
   app.post('/api/analyze-profiles', async (req: Request, res: Response) => {
     try {
-      const { urls, userName } = req.body as { urls: ProfileUrls; userName?: string };
       const user = await getUserFromReq(req);
-      const name = userName || user?.name || 'Engineer';
+      if (!user) return res.status(401).json({ error: 'Unauthorized. Bearer token required.' });
+
+      const { urls, userName } = req.body as { urls: ProfileUrls; userName?: string };
+      const name = userName || user.name || 'Engineer';
 
       const taskId = `task-analysis-${Date.now()}`;
       const workerId = `celery-worker-redis-${Math.floor(10 + Math.random() * 90)}`;
@@ -237,7 +242,7 @@ async function startServer() {
         }
       );
 
-      analysis.userId = user?.id || 'usr-demo-001';
+      analysis.userId = user.id;
       await db.saveAnalysis(analysis);
       await db.logActivity(analysis.userId, 'Generated Candidate Analysis', 'profile', `Analyzed profiles for ${analysis.fullName}`);
 
@@ -256,14 +261,17 @@ async function startServer() {
 
   app.get('/api/candidate-analysis', async (req: Request, res: Response) => {
     const user = await getUserFromReq(req);
-    const userId = user?.id || 'usr-demo-001';
-    const analysis = await db.getAnalysis(userId);
+    if (!user) return res.status(401).json({ error: 'Unauthorized. Bearer token required.' });
+    const analysis = await db.getAnalysis(user.id);
     res.json({ analysis: analysis || null });
   });
 
   // --- 4. Application Package Generation Routes ---
   app.post('/api/generate-application', async (req: Request, res: Response) => {
     try {
+      const user = await getUserFromReq(req);
+      if (!user) return res.status(401).json({ error: 'Unauthorized. Bearer token required.' });
+
       const {
         candidateAnalysis,
         jobTitle,
@@ -288,8 +296,7 @@ async function startServer() {
         return res.status(400).json({ error: 'Job title and Company name are required' });
       }
 
-      const user = await getUserFromReq(req);
-      const userId = user?.id || 'usr-demo-001';
+      const userId = user.id;
 
       // Fallback candidate if none passed
       let candidate = candidateAnalysis;
@@ -306,8 +313,9 @@ async function startServer() {
             substack: 'https://techwriting.substack.com',
             twitter: 'https://x.com/tech_builder',
           },
-          user?.name || 'Software Engineer'
+          user.name || 'Software Engineer'
         );
+        candidate.userId = userId;
         await db.saveAnalysis(candidate);
       }
 
@@ -391,14 +399,14 @@ async function startServer() {
   // --- 5. Job Applications History & Tracker Routes ---
   app.get('/api/jobs', async (req: Request, res: Response) => {
     const user = await getUserFromReq(req);
-    const userId = user?.id || 'usr-demo-001';
-    const jobs = await db.getAllJobs(userId);
+    if (!user) return res.status(401).json({ error: 'Unauthorized. Bearer token required.' });
+    const jobs = await db.getAllJobs(user.id);
     res.json({ jobs });
   });
 
   app.post('/api/jobs', async (req: Request, res: Response) => {
     const user = await getUserFromReq(req);
-    const userId = user?.id || 'usr-demo-001';
+    if (!user) return res.status(401).json({ error: 'Unauthorized. Bearer token required.' });
     const jobData = req.body as Partial<JobApplication>;
 
     if (!jobData.jobTitle || !jobData.companyName || !jobData.applicationPackage) {
@@ -407,7 +415,7 @@ async function startServer() {
 
     const job: JobApplication = {
       id: jobData.id || `job-${Date.now()}`,
-      userId,
+      userId: user.id,
       createdAt: jobData.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       jobTitle: jobData.jobTitle,
@@ -428,22 +436,38 @@ async function startServer() {
   });
 
   app.patch('/api/jobs/:id', async (req: Request, res: Response) => {
+    const user = await getUserFromReq(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized. Bearer token required.' });
+
     const { id } = req.params;
-    const updates = req.body;
-    const updated = await db.updateJob(id, updates);
-    if (!updated) {
+    const existingJob = await db.getJob(id);
+    if (!existingJob) {
       return res.status(404).json({ error: 'Job not found' });
     }
+    if (existingJob.userId !== user.id) {
+      return res.status(403).json({ error: 'Forbidden. You do not have permission to modify this job.' });
+    }
+
+    const updates = req.body;
+    const updated = await db.updateJob(id, updates);
     res.json({ success: true, job: updated });
   });
 
   app.patch('/api/jobs/:id/status', async (req: Request, res: Response) => {
+    const user = await getUserFromReq(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized. Bearer token required.' });
+
     const { id } = req.params;
-    const { status, notes } = req.body;
-    const updated = await db.updateJobStatus(id, status, notes);
-    if (!updated) {
+    const existingJob = await db.getJob(id);
+    if (!existingJob) {
       return res.status(404).json({ error: 'Job not found' });
     }
+    if (existingJob.userId !== user.id) {
+      return res.status(403).json({ error: 'Forbidden. You do not have permission to modify this job.' });
+    }
+
+    const { status, notes } = req.body;
+    const updated = await db.updateJobStatus(id, status, notes);
     res.json({ success: true, job: updated });
   });
 
@@ -541,24 +565,25 @@ Guidelines:
   app.post('/api/resume/generate', async (req: Request, res: Response) => {
     try {
       const user = await getUserFromReq(req);
-      const userId = user?.id || 'usr-demo-001';
+      if (!user) return res.status(401).json({ error: 'Unauthorized. Bearer token required.' });
       const { jobTitle, companyName, jobDescription, customData } = req.body;
 
-      let candidate = await db.getAnalysis(userId);
+      let candidate = await db.getAnalysis(user.id);
       if (!candidate) {
         // Fallback default
         candidate = {
-          id: 'cand-default',
-          fullName: user?.name || 'Shivam Singh',
-          tagline: 'Full-Stack Software Engineer',
-          executiveSummary: 'Full-Stack Software Engineer specializing in scalable cloud architectures.',
-          experienceLevel: 'Senior',
+          id: `cand-${user.id}`,
+          userId: user.id,
+          fullName: user.name || 'Candidate',
+          tagline: user.title || 'Software Engineer',
+          executiveSummary: 'Software Engineer specializing in modern web and cloud architectures.',
+          experienceLevel: 'Mid-Senior',
           skillsMatrix: [],
-          githubMetrics: { username: 'singhshivam', totalRepos: 24, topLanguages: ['TypeScript', 'Python'], featuredRepos: [], commitFrequency: 'High', codeQualityRating: 94 },
+          githubMetrics: { username: 'developer', totalRepos: 24, topLanguages: ['TypeScript', 'Python'], featuredRepos: [], commitFrequency: 'High', codeQualityRating: 94 },
           leetcodeMetrics: { totalSolved: 480, easySolved: 160, mediumSolved: 260, hardSolved: 60, estimatedRating: 1950, topTopics: [], globalRankingTopPercent: 'Top 3.5%' },
           linkedinHighlights: { headline: 'Software Engineer', yearsOfExp: 4, keyAchievements: [], industryDomains: [] },
-          substackInsights: { handle: 'shivam', publicationTopics: [], technicalDepthScore: 92, notableArticles: [] },
-          twitterSignals: { handle: 'shivam', publicBuildingFocus: [], domainAuthority: 'High' },
+          substackInsights: { handle: 'engineer', publicationTopics: [], technicalDepthScore: 92, notableArticles: [] },
+          twitterSignals: { handle: 'engineer', publicBuildingFocus: [], domainAuthority: 'High' },
           keyStrengths: [],
           competitiveAdvantages: [],
           growthAreas: [],
@@ -599,21 +624,22 @@ Guidelines:
   app.post('/api/followup/generate', async (req: Request, res: Response) => {
     try {
       const user = await getUserFromReq(req);
-      const userId = user?.id || 'usr-demo-001';
+      if (!user) return res.status(401).json({ error: 'Unauthorized. Bearer token required.' });
       const { jobTitle, companyName, targetPlatform } = req.body;
 
-      const candidate = (await db.getAnalysis(userId)) || {
-        id: 'cand-default',
-        fullName: user?.name || 'Shivam Singh',
-        tagline: 'Software Engineer',
+      const candidate = (await db.getAnalysis(user.id)) || {
+        id: `cand-${user.id}`,
+        userId: user.id,
+        fullName: user.name || 'Candidate',
+        tagline: user.title || 'Software Engineer',
         executiveSummary: '',
         experienceLevel: 'Mid-Senior',
         skillsMatrix: [],
-        githubMetrics: { username: 'singhshivam', totalRepos: 24, topLanguages: ['TypeScript'], featuredRepos: [], commitFrequency: 'High', codeQualityRating: 94 },
+        githubMetrics: { username: 'developer', totalRepos: 24, topLanguages: ['TypeScript'], featuredRepos: [], commitFrequency: 'High', codeQualityRating: 94 },
         leetcodeMetrics: { totalSolved: 480, easySolved: 160, mediumSolved: 260, hardSolved: 60, estimatedRating: 1950, topTopics: [], globalRankingTopPercent: 'Top 3.5%' },
         linkedinHighlights: { headline: 'Software Engineer', yearsOfExp: 4, keyAchievements: [], industryDomains: [] },
-        substackInsights: { handle: 'shivam', publicationTopics: [], technicalDepthScore: 92, notableArticles: [] },
-        twitterSignals: { handle: 'shivam', publicBuildingFocus: [], domainAuthority: 'High' },
+        substackInsights: { handle: 'engineer', publicationTopics: [], technicalDepthScore: 92, notableArticles: [] },
+        twitterSignals: { handle: 'engineer', publicBuildingFocus: [], domainAuthority: 'High' },
         keyStrengths: [],
         competitiveAdvantages: [],
         growthAreas: [],
@@ -630,15 +656,21 @@ Guidelines:
   });
 
   app.get('/api/jobs/:id/ics', async (req: Request, res: Response) => {
+    const user = await getUserFromReq(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized. Bearer token required.' });
+
     const job = await db.getJob(req.params.id);
     if (!job) {
       return res.status(404).json({ error: 'Job not found' });
     }
+    if (job.userId !== user.id) {
+      return res.status(403).json({ error: 'Forbidden. You do not have permission to export calendar for this job.' });
+    }
 
-    const user = await getUserFromReq(req);
     const candidate = (await db.getAnalysis(job.userId)) || {
-      id: 'cand-default',
-      fullName: user?.name || 'Candidate',
+      id: `cand-${user.id}`,
+      userId: user.id,
+      fullName: user.name || 'Candidate',
       tagline: 'Software Engineer',
       executiveSummary: '',
       experienceLevel: 'Mid-Senior',
@@ -667,11 +699,17 @@ Guidelines:
   // --- 9. Salary Negotiation & Offer Evaluation Routes ---
   app.patch('/api/jobs/:id/offer', async (req: Request, res: Response) => {
     try {
+      const user = await getUserFromReq(req);
+      if (!user) return res.status(401).json({ error: 'Unauthorized. Bearer token required.' });
+
       const { id } = req.params;
       const { offerDetails } = req.body;
       const job = await db.getJob(id);
       if (!job) {
         return res.status(404).json({ error: 'Job not found' });
+      }
+      if (job.userId !== user.id) {
+        return res.status(403).json({ error: 'Forbidden. You do not have permission to modify offer details for this job.' });
       }
 
       const updated = await db.updateJob(id, { offerDetails });
@@ -682,7 +720,18 @@ Guidelines:
   });
 
   app.delete('/api/jobs/:id', async (req: Request, res: Response) => {
+    const user = await getUserFromReq(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized. Bearer token required.' });
+
     const { id } = req.params;
+    const job = await db.getJob(id);
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    if (job.userId !== user.id) {
+      return res.status(403).json({ error: 'Forbidden. You do not have permission to delete this job.' });
+    }
+
     const deleted = await db.deleteJob(id);
     res.json({ success: deleted });
   });
@@ -730,14 +779,15 @@ Guidelines:
   // --- 8. Persistent AI Copilot Conversation Chat & Audit Logs ---
   app.get('/api/chat/history', async (req: Request, res: Response) => {
     const user = await getUserFromReq(req);
-    const userId = user ? user.id : 'usr-demo-001';
-    const history = await db.getChatHistory(userId);
+    if (!user) return res.status(401).json({ error: 'Unauthorized. Bearer token required.' });
+    const history = await db.getChatHistory(user.id);
     res.json({ history });
   });
 
   app.post('/api/chat/message', async (req: Request, res: Response) => {
     const user = await getUserFromReq(req);
-    const userId = user ? user.id : 'usr-demo-001';
+    if (!user) return res.status(401).json({ error: 'Unauthorized. Bearer token required.' });
+    const userId = user.id;
     const { text, topic, referencedJobId } = req.body;
 
     if (!text || !text.trim()) {
@@ -794,16 +844,16 @@ Provide a concise, high-value, tactical, actionable answer for the candidate. Be
 
   app.delete('/api/chat/history', async (req: Request, res: Response) => {
     const user = await getUserFromReq(req);
-    const userId = user ? user.id : 'usr-demo-001';
-    await db.clearChatHistory(userId);
-    await db.logActivity(userId, 'Cleared Chat History', 'chat', 'Candidate wiped AI conversation history');
+    if (!user) return res.status(401).json({ error: 'Unauthorized. Bearer token required.' });
+    await db.clearChatHistory(user.id);
+    await db.logActivity(user.id, 'Cleared Chat History', 'chat', 'Candidate wiped AI conversation history');
     res.json({ success: true, message: 'Chat history cleared' });
   });
 
   app.get('/api/activity/logs', async (req: Request, res: Response) => {
     const user = await getUserFromReq(req);
-    const userId = user ? user.id : 'usr-demo-001';
-    const logs = await db.getActivityLogs(userId);
+    if (!user) return res.status(401).json({ error: 'Unauthorized. Bearer token required.' });
+    const logs = await db.getActivityLogs(user.id);
     res.json({ logs });
   });
 

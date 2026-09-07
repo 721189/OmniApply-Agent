@@ -16,6 +16,7 @@ import {
   FileJson
 } from 'lucide-react';
 import { UserAccount } from '../types';
+import { apiFetch } from '../utils/apiClient';
 
 interface UserSettingsModalProps {
   isOpen: boolean;
@@ -78,7 +79,7 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
 
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/change-password', {
+      const res = await apiFetch('/api/auth/change-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ newPassword }),
@@ -98,7 +99,7 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
   const handleExportData = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/export-data');
+      const res = await apiFetch('/api/auth/export-data');
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to export data');
 
@@ -125,7 +126,7 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
 
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/account', { method: 'DELETE' });
+      const res = await apiFetch('/api/auth/account', { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete account');
       alert('Account and all associated records have been permanently purged.');
       onLogout();

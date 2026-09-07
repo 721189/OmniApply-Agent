@@ -27,6 +27,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { ProfileUrls, CandidateAnalysis, AgentTask } from '../types';
+import { apiFetch } from '../utils/apiClient';
 import { SAMPLE_PROFILE_PRESETS, SampleProfilePreset } from '../data/mockProfiles';
 
 interface ProfileHubProps {
@@ -74,7 +75,7 @@ export const ProfileHub: React.FC<ProfileHubProps> = ({
 
     setLiveScrapeStatus((prev) => ({ ...prev, [platform]: { checking: true } }));
     try {
-      const res = await fetch('/api/scrape/live-check', {
+      const res = await apiFetch('/api/scrape/live-check', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ platform, urlOrHandle }),

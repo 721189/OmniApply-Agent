@@ -1,6 +1,16 @@
 import crypto from 'crypto';
 
-const SERVER_SECRET = process.env.JWT_SECRET || 'omni-apply-ai-production-jwt-secret-2026';
+function getSecretKey(): string {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('FATAL SECURITY ERROR: process.env.JWT_SECRET environment variable must be defined in production environment.');
+    }
+    console.warn('[SECURITY WARNING] process.env.JWT_SECRET is not defined. Falling back to local development signing key.');
+    return 'omni-apply-ai-dev-only-jwt-secret-key-2026';
+  }
+  return secret;
+}
 
 export interface PasswordRecord {
   hash: string;
@@ -36,9 +46,10 @@ export function verifyPassword(password: string, savedHash?: string, salt?: stri
  * HMAC-SHA256 signed session tokens with expiration
  */
 export function generateSignedToken(userId: string): { token: string; expiresAt: number } {
+  const secretKey = getSecretKey();
   const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
   const payload = `${userId}:${expiresAt}`;
-  const signature = crypto.createHmac('sha256', SERVER_SECRET).update(payload).digest('hex');
+  const signature = crypto.createHmac('sha256', secretKey).update(payload).digest('hex');
   const token = Buffer.from(`${payload}:${signature}`).toString('base64url');
   return { token, expiresAt };
 }
@@ -48,6 +59,7 @@ export function generateSignedToken(userId: string): { token: string; expiresAt:
  */
 export function verifySignedToken(token: string): { valid: boolean; userId?: string } {
   try {
+    const secretKey = getSecretKey();
     const decoded = Buffer.from(token, 'base64url').toString('utf-8');
     const parts = decoded.split(':');
     if (parts.length !== 3) return { valid: false };
@@ -57,7 +69,7 @@ export function verifySignedToken(token: string): { valid: boolean; userId?: str
       return { valid: false };
     }
     const payload = `${userId}:${expiresAtStr}`;
-    const expectedSig = crypto.createHmac('sha256', SERVER_SECRET).update(payload).digest('hex');
+    const expectedSig = crypto.createHmac('sha256', secretKey).update(payload).digest('hex');
     const sigA = Buffer.from(signature, 'hex');
     const sigB = Buffer.from(expectedSig, 'hex');
     if (sigA.length === sigB.length && crypto.timingSafeEqual(sigA, sigB)) {
@@ -68,3 +80,4 @@ export function verifySignedToken(token: string): { valid: boolean; userId?: str
   }
   return { valid: false };
 }
+

@@ -35,6 +35,7 @@ import {
   DollarSign
 } from 'lucide-react';
 import { JobApplication, ApplicationPackage, PlatformType, ScreeningQuestion, LatexResumePackage, FollowUpSequence, JobOfferDetails } from '../types';
+import { apiFetch } from '../utils/apiClient';
 import { ResumeBuilderModal } from './ResumeBuilderModal';
 import { FollowUpSequencerModal } from './FollowUpSequencerModal';
 import { OfferCalculatorModal } from './OfferCalculatorModal';
@@ -144,7 +145,7 @@ export const ApplicationReviewer: React.FC<ApplicationReviewerProps> = ({
       else if (targetField === 'pitch') currentText = elevatorPitchDraft;
       else if (targetField === 'platform') currentText = platformDrafts.wellfound?.directNoteToFounders || '';
 
-      const res = await fetch('/api/refine-draft', {
+      const res = await apiFetch('/api/refine-draft', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

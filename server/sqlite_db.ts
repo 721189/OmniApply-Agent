@@ -406,9 +406,14 @@ export class SQLiteDatabase {
   async getUserIdFromToken(token: string): Promise<string | undefined> {
     if (!token) return undefined;
 
-    // 1. Check fast in-memory map cache
-    if (this.userTokensMap.has(token)) {
-      return this.userTokensMap.get(token);
+    // 1. Cryptographic HMAC token signature verification (Stateless, fast, cold-start resilient across server restarts)
+    const tokenVerification = verifySignedToken(token);
+    if (tokenVerification.valid && tokenVerification.userId) {
+      const user = await this.getUserById(tokenVerification.userId);
+      if (user) {
+        this.userTokensMap.set(token, user.id);
+        return user.id;
+      }
     }
 
     // 2. Query persistent user_tokens database table
@@ -425,20 +430,9 @@ export class SQLiteDatabase {
       console.warn('[Database] Failed querying persistent token table:', e);
     }
 
-    // 3. Fallback to HMAC token signature verification (Stateless & Cold-start resilient)
-    const tokenVerification = verifySignedToken(token);
-    if (tokenVerification.valid && tokenVerification.userId) {
-      const user = await this.getUserById(tokenVerification.userId);
-      if (user) {
-        this.userTokensMap.set(token, user.id);
-        try {
-          await runSql(
-            'INSERT OR REPLACE INTO user_tokens (token, user_id, created_at) VALUES (?, ?, ?);',
-            [token, user.id, new Date().toISOString()]
-          );
-        } catch {}
-        return user.id;
-      }
+    // 3. Fallback to in-memory map cache
+    if (this.userTokensMap.has(token)) {
+      return this.userTokensMap.get(token);
     }
 
     return undefined;
@@ -547,11 +541,13 @@ export class SQLiteDatabase {
   }
 
   async saveAnalysis(analysis: CandidateAnalysis): Promise<void> {
-    const userId = analysis.userId || 'usr-demo-001';
+    if (!analysis.userId) {
+      throw new Error('CandidateAnalysis requires a valid userId');
+    }
     await runSql(
       `INSERT OR REPLACE INTO candidate_analyses (user_id, full_name, data_json, created_at)
        VALUES (?, ?, ?, ?);`,
-      [userId, analysis.fullName, JSON.stringify(analysis), new Date().toISOString()]
+      [analysis.userId, analysis.fullName, JSON.stringify(analysis), new Date().toISOString()]
     );
   }
 
@@ -853,8 +849,8 @@ export class SQLiteDatabase {
     };
   }
 
-  private sanitizeUser(user: StoredUser): UserAccount {
-    const { passwordHash, passwordSalt, savedUrls, ...rest } = user;
+  public sanitizeUser(user: StoredUser): UserAccount {
+    const { passwordHash, passwordSalt, verificationCode, savedUrls, ...rest } = user;
     return rest;
   }
 }

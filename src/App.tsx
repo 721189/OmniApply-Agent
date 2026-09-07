@@ -23,6 +23,7 @@ import {
   DEFAULT_SAMPLE_ANALYSIS 
 } from './data/mockProfiles';
 import { AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
+import { apiFetch } from './utils/apiClient';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('profile');
@@ -53,35 +54,57 @@ export default function App() {
 
   // Initialize Auth & fetch existing applications from database
   useEffect(() => {
-    // Auto-login default demo user if not logged in
-    const storedUser = localStorage.getItem('omniapply_user');
-    if (storedUser) {
-      try {
-        setCurrentUser(JSON.parse(storedUser));
-      } catch (e) {
-        // ignore
+    const initAuthAndData = async () => {
+      const token = localStorage.getItem('omniapply_token');
+      if (token) {
+        try {
+          const res = await apiFetch('/api/auth/me');
+          if (res.ok) {
+            const data = await res.json();
+            if (data.user) {
+              setCurrentUser(data.user);
+              localStorage.setItem('omniapply_user', JSON.stringify(data.user));
+              await fetchSavedJobs();
+              await fetchTelemetryTasks();
+              return;
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to verify existing session:', e);
+        }
       }
-    } else {
-      const defaultUser: UserAccount = {
-        id: 'usr-demo-001',
-        name: 'Shivam Singh',
-        email: 'singhshivam20009@gmail.com',
-        isVerified: true,
-        title: 'Full-Stack Software Engineer',
-        location: 'Bangalore, India',
-        createdAt: new Date().toISOString(),
-      };
-      setCurrentUser(defaultUser);
-      localStorage.setItem('omniapply_user', JSON.stringify(defaultUser));
-    }
 
-    fetchSavedJobs();
-    fetchTelemetryTasks();
+      // If no valid session exists, create or log in persistent account
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: 'Shivam Singh',
+            email: 'singhshivam20009@gmail.com',
+            password: 'demo-password-123',
+          }),
+        });
+        const data = await res.json();
+        if (data.user && data.token) {
+          setCurrentUser(data.user);
+          localStorage.setItem('omniapply_user', JSON.stringify(data.user));
+          localStorage.setItem('omniapply_token', data.token);
+        }
+      } catch (e) {
+        console.warn('Auto auth setup failed:', e);
+      }
+
+      await fetchSavedJobs();
+      await fetchTelemetryTasks();
+    };
+
+    initAuthAndData();
   }, []);
 
   const fetchSavedJobs = async () => {
     try {
-      const res = await fetch('/api/jobs');
+      const res = await apiFetch('/api/jobs');
       if (res.ok) {
         const data = await res.json();
         if (data.jobs && Array.isArray(data.jobs)) {
@@ -98,7 +121,7 @@ export default function App() {
 
   const fetchTelemetryTasks = async () => {
     try {
-      const res = await fetch('/api/tasks');
+      const res = await apiFetch('/api/tasks');
       if (res.ok) {
         const data = await res.json();
         if (data.tasks) {
@@ -115,6 +138,7 @@ export default function App() {
     localStorage.setItem('omniapply_user', JSON.stringify(user));
     localStorage.setItem('omniapply_token', token);
     showToast(`Welcome, ${user.name}!`, 'success');
+    fetchSavedJobs();
   };
 
   const handleLogout = () => {
@@ -122,10 +146,11 @@ export default function App() {
     localStorage.removeItem('omniapply_user');
     localStorage.removeItem('omniapply_token');
     showToast('Logged out successfully.');
+    setSavedJobs([]);
   };
 
   const handleUpdateProfile = async (updatedData: Partial<UserAccount>) => {
-    const res = await fetch('/api/auth/profile', {
+    const res = await apiFetch('/api/auth/profile', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(updatedData),
@@ -190,7 +215,7 @@ export default function App() {
         });
       }, 700);
 
-      const res = await fetch('/api/analyze-profiles', {
+      const res = await apiFetch('/api/analyze-profiles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -276,7 +301,7 @@ export default function App() {
         });
       }, 600);
 
-      const res = await fetch('/api/generate-application', {
+      const res = await apiFetch('/api/generate-application', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -314,7 +339,7 @@ export default function App() {
   // 3. Update Job Drafts & Application Package
   const handleUpdateJob = async (updatedJob: JobApplication) => {
     try {
-      const res = await fetch(`/api/jobs/${updatedJob.id}`, {
+      const res = await apiFetch(`/api/jobs/${updatedJob.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedJob),
@@ -333,7 +358,7 @@ export default function App() {
   // 4. Mark Job as Applied / Update Status
   const handleUpdateJobStatus = async (jobId: string, status: JobStatus, notes?: string) => {
     try {
-      const res = await fetch(`/api/jobs/${jobId}/status`, {
+      const res = await apiFetch(`/api/jobs/${jobId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status, notes }),
@@ -358,7 +383,7 @@ export default function App() {
   // 5. Delete Job from Database
   const handleDeleteJob = async (jobId: string) => {
     try {
-      const res = await fetch(`/api/jobs/${jobId}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/jobs/${jobId}`, { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to delete job');
 

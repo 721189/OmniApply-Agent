@@ -16,6 +16,7 @@ import {
   Briefcase
 } from 'lucide-react';
 import { ChatMessage, ActivityLog, UserAccount } from '../types';
+import { apiFetch } from '../utils/apiClient';
 
 interface CopilotChatDrawerProps {
   isOpen: boolean;
@@ -54,7 +55,7 @@ export const CopilotChatDrawer: React.FC<CopilotChatDrawerProps> = ({
 
   const fetchChatHistory = async () => {
     try {
-      const res = await fetch('/api/chat/history');
+      const res = await apiFetch('/api/chat/history');
       if (res.ok) {
         const data = await res.json();
         setMessages(data.history || []);
@@ -67,7 +68,7 @@ export const CopilotChatDrawer: React.FC<CopilotChatDrawerProps> = ({
   const fetchActivityLogs = async () => {
     setIsLoadingLogs(true);
     try {
-      const res = await fetch('/api/activity/logs');
+      const res = await apiFetch('/api/activity/logs');
       if (res.ok) {
         const data = await res.json();
         setLogs(data.logs || []);
@@ -90,7 +91,7 @@ export const CopilotChatDrawer: React.FC<CopilotChatDrawerProps> = ({
     // Optimistic user message
     const tempUserMsg: ChatMessage = {
       id: `temp-${Date.now()}`,
-      userId: currentUser?.id || 'usr-demo-001',
+      userId: currentUser?.id || 'temp-user',
       sender: 'user',
       text: queryText,
       timestamp: new Date().toISOString(),
@@ -99,7 +100,7 @@ export const CopilotChatDrawer: React.FC<CopilotChatDrawerProps> = ({
     setMessages((prev) => [...prev, tempUserMsg]);
 
     try {
-      const res = await fetch('/api/chat/message', {
+      const res = await apiFetch('/api/chat/message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: queryText, topic: selectedTopic }),
@@ -125,7 +126,7 @@ export const CopilotChatDrawer: React.FC<CopilotChatDrawerProps> = ({
   const handleClearHistory = async () => {
     if (!window.confirm('Are you sure you want to clear your AI chat history?')) return;
     try {
-      const res = await fetch('/api/chat/history', { method: 'DELETE' });
+      const res = await apiFetch('/api/chat/history', { method: 'DELETE' });
       if (res.ok) {
         setMessages([]);
         onShowToast('Chat history wiped cleanly', 'success');

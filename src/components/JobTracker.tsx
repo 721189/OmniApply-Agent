@@ -25,6 +25,7 @@ import {
   Scale
 } from 'lucide-react';
 import { JobApplication, JobStatus, PlatformType, JobOfferDetails } from '../types';
+import { apiFetch } from '../utils/apiClient';
 import { OfferCalculatorModal } from './OfferCalculatorModal';
 
 interface JobTrackerProps {
@@ -65,7 +66,7 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
 
   const handleSaveOfferDetails = async (jobId: string, offerDetails: JobOfferDetails) => {
     try {
-      const res = await fetch(`/api/jobs/${jobId}/offer`, {
+      const res = await apiFetch(`/api/jobs/${jobId}/offer`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ offerDetails }),
