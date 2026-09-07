@@ -1,4 +1,4 @@
-import { getGeminiAI } from './gemini';
+import { generateContentWithFallback } from './gemini';
 import { CandidateAnalysis, ApplicationPackage, PlatformType, AgentTaskLog } from '../src/types';
 import { generateTailoredResumePackage } from './resumeGenerator';
 import { generateFollowUpSequence } from './followupGenerator';
@@ -41,7 +41,6 @@ export async function generateApplicationPackage(
   emit(70, 'Synthesizing Tailored Application Package', `Generating high-conversion cover letter, recruiter screening responses, ATS score report, and platform-specific fields...`);
 
   try {
-    const ai = getGeminiAI();
     const prompt = `You are OmniApply AI, the world's most sophisticated career agent and recruiter response generator.
 Generate a complete, elite-tier application package for this specific job opportunity.
 
@@ -167,8 +166,7 @@ Return a strictly valid JSON object with the following schema:
   "tailoredBio": "Passionate Software Engineer combining strong algorithmic fundamentals (${candidate.leetcodeMetrics.totalSolved}+ LeetCode problems) with hands-on full-stack product engineering across React, Node.js, and distributed architectures."
 }`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
+    const response = await generateContentWithFallback({
       contents: prompt,
       config: {
         responseMimeType: 'application/json',

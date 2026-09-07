@@ -440,55 +440,66 @@ export const ProfileHub: React.FC<ProfileHubProps> = ({
                       <span>LeetCode DSA Mastery</span>
                     </div>
                     <span className="text-[10px] px-2 py-0.5 bg-amber-500/10 border border-amber-500/30 text-amber-300 rounded-full font-semibold">
-                      {analysis.leetcodeMetrics.globalRankingTopPercent}
+                      {analysis.sourcesAnalyzed?.leetcode && analysis.leetcodeMetrics?.totalSolved > 0 
+                        ? analysis.leetcodeMetrics.globalRankingTopPercent 
+                        : 'Not Linked'}
                     </span>
                   </div>
 
-                  {/* Problem Solving Distribution Chart */}
-                  <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800/80 space-y-2.5">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-slate-400">Total Solved</span>
-                      <span className="text-white font-bold font-mono">{analysis.leetcodeMetrics.totalSolved} Problems</span>
-                    </div>
+                  {analysis.sourcesAnalyzed?.leetcode && analysis.leetcodeMetrics?.totalSolved > 0 ? (
+                    <>
+                      {/* Problem Solving Distribution Chart */}
+                      <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800/80 space-y-2.5">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-400">Total Solved</span>
+                          <span className="text-white font-bold font-mono">{analysis.leetcodeMetrics.totalSolved} Problems</span>
+                        </div>
 
-                    {/* Progress multi-segment bar */}
-                    <div className="w-full h-3 bg-slate-900 rounded-full flex overflow-hidden">
-                      <div 
-                        style={{ width: `${(analysis.leetcodeMetrics.easySolved / analysis.leetcodeMetrics.totalSolved) * 100}%` }}
-                        className="bg-emerald-500 h-full" 
-                        title={`Easy: ${analysis.leetcodeMetrics.easySolved}`}
-                      />
-                      <div 
-                        style={{ width: `${(analysis.leetcodeMetrics.mediumSolved / analysis.leetcodeMetrics.totalSolved) * 100}%` }}
-                        className="bg-amber-500 h-full" 
-                        title={`Medium: ${analysis.leetcodeMetrics.mediumSolved}`}
-                      />
-                      <div 
-                        style={{ width: `${(analysis.leetcodeMetrics.hardSolved / analysis.leetcodeMetrics.totalSolved) * 100}%` }}
-                        className="bg-rose-500 h-full" 
-                        title={`Hard: ${analysis.leetcodeMetrics.hardSolved}`}
-                      />
-                    </div>
+                        {/* Progress multi-segment bar */}
+                        <div className="w-full h-3 bg-slate-900 rounded-full flex overflow-hidden">
+                          <div 
+                            style={{ width: `${(analysis.leetcodeMetrics.easySolved / Math.max(1, analysis.leetcodeMetrics.totalSolved)) * 100}%` }}
+                            className="bg-emerald-500 h-full" 
+                            title={`Easy: ${analysis.leetcodeMetrics.easySolved}`}
+                          />
+                          <div 
+                            style={{ width: `${(analysis.leetcodeMetrics.mediumSolved / Math.max(1, analysis.leetcodeMetrics.totalSolved)) * 100}%` }}
+                            className="bg-amber-500 h-full" 
+                            title={`Medium: ${analysis.leetcodeMetrics.mediumSolved}`}
+                          />
+                          <div 
+                            style={{ width: `${(analysis.leetcodeMetrics.hardSolved / Math.max(1, analysis.leetcodeMetrics.totalSolved)) * 100}%` }}
+                            className="bg-rose-500 h-full" 
+                            title={`Hard: ${analysis.leetcodeMetrics.hardSolved}`}
+                          />
+                        </div>
 
-                    {/* Breakdown Badges */}
-                    <div className="flex items-center justify-between text-[11px] pt-1 font-mono">
-                      <span className="text-emerald-400">Easy: {analysis.leetcodeMetrics.easySolved}</span>
-                      <span className="text-amber-400">Med: {analysis.leetcodeMetrics.mediumSolved}</span>
-                      <span className="text-rose-400">Hard: {analysis.leetcodeMetrics.hardSolved}</span>
-                    </div>
-                  </div>
+                        {/* Breakdown Badges */}
+                        <div className="flex items-center justify-between text-[11px] pt-1 font-mono">
+                          <span className="text-emerald-400">Easy: {analysis.leetcodeMetrics.easySolved}</span>
+                          <span className="text-amber-400">Med: {analysis.leetcodeMetrics.mediumSolved}</span>
+                          <span className="text-rose-400">Hard: {analysis.leetcodeMetrics.hardSolved}</span>
+                        </div>
+                      </div>
 
-                  {/* Top Algorithmic Topics */}
-                  <div>
-                    <div className="text-[11px] font-semibold text-slate-400 mb-1.5">Algorithmic Strengths:</div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {analysis.leetcodeMetrics.topTopics.map((topic, i) => (
-                        <span key={i} className="text-[10px] px-2 py-0.5 bg-slate-950 text-slate-300 border border-slate-800 rounded-lg">
-                          {topic}
-                        </span>
-                      ))}
+                      {/* Top Algorithmic Topics */}
+                      <div>
+                        <div className="text-[11px] font-semibold text-slate-400 mb-1.5">Algorithmic Strengths:</div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {analysis.leetcodeMetrics.topTopics.map((topic, i) => (
+                            <span key={i} className="text-[10px] px-2 py-0.5 bg-slate-950 text-slate-300 border border-slate-800 rounded-lg">
+                              {topic}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="p-4 bg-slate-950/70 border border-slate-800/80 rounded-2xl text-center space-y-1">
+                      <p className="text-xs text-slate-400 font-medium">LeetCode profile link not provided</p>
+                      <p className="text-[11px] text-slate-500">Provide your LeetCode URL on the left panel to analyze your problem-solving metrics.</p>
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* 2. GitHub Footprint & Featured Repos */}
@@ -499,43 +510,98 @@ export const ProfileHub: React.FC<ProfileHubProps> = ({
                       <span>GitHub Engineering Impact</span>
                     </div>
                     <span className="text-[10px] px-2 py-0.5 bg-indigo-500/10 border border-indigo-500/30 text-indigo-300 rounded-full font-semibold">
-                      Quality: {analysis.githubMetrics.codeQualityRating}/100
+                      {analysis.sourcesAnalyzed?.github && analysis.githubMetrics?.totalRepos > 0
+                        ? `Quality: ${analysis.githubMetrics.codeQualityRating}/100`
+                        : 'Not Linked'}
                     </span>
                   </div>
 
-                  <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800/80 space-y-2">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-slate-400">Active Repositories</span>
-                      <span className="text-white font-bold font-mono">{analysis.githubMetrics.totalRepos} repos</span>
-                    </div>
-                    <div className="text-[11px] text-slate-400">
-                      Commit Activity: <span className="text-slate-200 font-medium">{analysis.githubMetrics.commitFrequency}</span>
-                    </div>
-                    <div className="flex flex-wrap gap-1 pt-1">
-                      {analysis.githubMetrics.topLanguages.map((lang, i) => (
-                        <span key={i} className="text-[10px] px-2 py-0.5 bg-slate-900 text-indigo-300 rounded border border-slate-800">
-                          {lang}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Featured Repos */}
-                  <div className="space-y-2">
-                    <div className="text-[11px] font-semibold text-slate-400">Flagship Architectural Repo:</div>
-                    {analysis.githubMetrics.featuredRepos.slice(0, 1).map((repo, i) => (
-                      <div key={i} className="p-3 bg-slate-950 rounded-2xl border border-slate-800 text-xs space-y-1">
-                        <div className="flex items-center justify-between font-bold text-indigo-300">
-                          <span>{repo.repoName}</span>
-                          <span className="text-amber-400 font-mono">★ {repo.stars}</span>
+                  {analysis.sourcesAnalyzed?.github && analysis.githubMetrics?.totalRepos > 0 ? (
+                    <>
+                      <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800/80 space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-400">Active Repositories</span>
+                          <span className="text-white font-bold font-mono">{analysis.githubMetrics.totalRepos} repos</span>
                         </div>
-                        <p className="text-[11px] text-slate-400 line-clamp-1">{repo.description}</p>
+                        <div className="text-[11px] text-slate-400">
+                          Commit Activity: <span className="text-slate-200 font-medium">{analysis.githubMetrics.commitFrequency}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {analysis.githubMetrics.topLanguages.map((lang, i) => (
+                            <span key={i} className="text-[10px] px-2 py-0.5 bg-slate-900 text-indigo-300 rounded border border-slate-800">
+                              {lang}
+                            </span>
+                          ))}
+                        </div>
                       </div>
-                    ))}
-                  </div>
+
+                      {/* Featured Repos */}
+                      {analysis.githubMetrics.featuredRepos.length > 0 && (
+                        <div className="space-y-2">
+                          <div className="text-[11px] font-semibold text-slate-400">Flagship Architectural Repo:</div>
+                          {analysis.githubMetrics.featuredRepos.slice(0, 1).map((repo, i) => (
+                            <div key={i} className="p-3 bg-slate-950 rounded-2xl border border-slate-800 text-xs space-y-1">
+                              <div className="flex items-center justify-between font-bold text-indigo-300">
+                                <span>{repo.repoName}</span>
+                                <span className="text-amber-400 font-mono">★ {repo.stars}</span>
+                              </div>
+                              <p className="text-[11px] text-slate-400 line-clamp-1">{repo.description}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="p-4 bg-slate-950/70 border border-slate-800/80 rounded-2xl text-center space-y-1">
+                      <p className="text-xs text-slate-400 font-medium">GitHub profile link not provided</p>
+                      <p className="text-[11px] text-slate-500">Provide your GitHub URL on the left panel to analyze repositories and commit activity.</p>
+                    </div>
+                  )}
                 </div>
 
               </div>
+
+              {/* Portfolio Details Card if available */}
+              {analysis.portfolioDetails && (
+                <div className="bg-slate-900 border border-indigo-500/30 rounded-3xl p-5 shadow-xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-indigo-400 font-bold text-xs">
+                      <Globe className="h-4 w-4" />
+                      <span>Verified Personal Portfolio & Website</span>
+                    </div>
+                    {analysis.portfolioDetails.url && (
+                      <a 
+                        href={analysis.portfolioDetails.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-[10px] text-indigo-300 hover:underline flex items-center gap-1 font-semibold"
+                      >
+                        <span>Visit Site</span>
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    )}
+                  </div>
+                  <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 space-y-2">
+                    <div className="font-bold text-white text-xs">{analysis.portfolioDetails.title}</div>
+                    {analysis.portfolioDetails.description && (
+                      <p className="text-xs text-slate-300 leading-relaxed">{analysis.portfolioDetails.description}</p>
+                    )}
+                    {analysis.portfolioDetails.projects && analysis.portfolioDetails.projects.length > 0 && (
+                      <div className="pt-2 space-y-1.5">
+                        <div className="text-[11px] font-semibold text-slate-400">Projects Discovered:</div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {analysis.portfolioDetails.projects.map((proj, pi) => (
+                            <div key={pi} className="p-2.5 bg-slate-900/80 rounded-xl border border-slate-800 text-xs">
+                              <div className="font-bold text-indigo-300">{proj.name}</div>
+                              <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-2">{proj.desc}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Substack & Twitter Signals */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

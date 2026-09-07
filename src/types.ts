@@ -84,6 +84,18 @@ export interface CandidateAnalysis {
     publicBuildingFocus: string[];
     domainAuthority: string;
   };
+  portfolioDetails?: {
+    title?: string;
+    description?: string;
+    bio?: string;
+    url?: string;
+    projects?: Array<{
+      name: string;
+      desc: string;
+      tech?: string;
+    }>;
+    detectedSkills?: string[];
+  };
   keyStrengths: string[];
   competitiveAdvantages: string[];
   growthAreas: string[];
@@ -95,6 +107,7 @@ export interface CandidateAnalysis {
     leetcode: boolean;
     substack: boolean;
     twitter: boolean;
+    portfolio?: boolean;
   };
 }
 

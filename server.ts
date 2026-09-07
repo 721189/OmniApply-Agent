@@ -426,8 +426,7 @@ async function startServer() {
 
       // Try Gemini Refinement
       try {
-        const { getGeminiAI } = await import('./server/gemini');
-        const ai = getGeminiAI();
+        const { generateContentWithFallback } = await import('./server/gemini');
         const prompt = `You are OmniApply AI, an expert career strategist and recruiter.
 Refine the following job application ${fieldType || 'text draft'} according to this user instruction:
 "${instruction}"
@@ -441,8 +440,7 @@ Guidelines:
 - Return ONLY the refined, polished text directly with no extra conversational preamble or markdown codeblocks wrapping the whole response.
 - Maintain high professionalism, clear active verbs, and compelling technical precision.`;
 
-        const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
+        const response = await generateContentWithFallback({
           contents: prompt,
         });
 

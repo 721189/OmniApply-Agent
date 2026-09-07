@@ -51,6 +51,8 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
   onUpdateStatus,
   onDeleteJob,
   onCreateNewApplication,
+  onRefreshJobs,
+  candidateName,
 }) => {
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
   const [searchQuery, setSearchQuery] = useState('');

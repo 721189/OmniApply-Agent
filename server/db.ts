@@ -26,12 +26,13 @@ class DatabaseStore {
       createdAt: new Date().toISOString(),
       passwordHash: 'demo_hashed_pass',
       savedUrls: {
-        linkedin: 'https://linkedin.com/in/alexrivera-tech',
-        github: 'https://github.com/alexrivera-dev',
-        leetcode: 'https://leetcode.com/u/alex_algorithms',
-        substack: 'https://systemsengineering.substack.com',
-        twitter: 'https://x.com/alexrivera_codes',
-        portfolio: 'https://alexrivera.dev',
+        linkedin: '',
+        github: '',
+        leetcode: '',
+        substack: '',
+        twitter: '',
+        portfolio: '',
+        resumeText: '',
       },
     };
     this.users.set(defaultUser.id, defaultUser);
