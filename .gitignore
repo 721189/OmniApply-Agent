@@ -6,3 +6,10 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Database & local data storage
+data/
+*.db
+*.sqlite
+*.sqlite3
+

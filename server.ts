@@ -53,7 +53,7 @@ async function startServer() {
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
-      const userId = db.getUserIdFromToken(token);
+      const userId = await db.getUserIdFromToken(token);
       if (userId) {
         return await db.getUserById(userId);
       }

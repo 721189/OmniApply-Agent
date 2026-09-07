@@ -1,6 +1,7 @@
 import initSqlJs, { Database as SqlJsDatabase } from 'sql.js';
 import path from 'path';
 import fs from 'fs';
+import { Pool } from 'pg';
 import { 
   UserAccount, 
   CandidateAnalysis, 
@@ -10,7 +11,7 @@ import {
   ChatMessage, 
   ActivityLog 
 } from '../src/types';
-import { hashPassword, verifyPassword, generateSignedToken } from './auth';
+import { hashPassword, verifyPassword, generateSignedToken, verifySignedToken } from './auth';
 
 export interface StoredUser extends UserAccount {
   passwordHash?: string;
@@ -18,189 +19,323 @@ export interface StoredUser extends UserAccount {
   savedUrls?: ProfileUrls;
 }
 
-const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), 'data');
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
+// Support external PostgreSQL database (e.g. Vercel Postgres, Neon, Supabase, Cloud SQL) or local SQLite WASM
+const POSTGRES_URL = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.PGDATABASE;
+let pgPool: Pool | null = null;
+
+if (POSTGRES_URL) {
+  try {
+    pgPool = new Pool({
+      connectionString: POSTGRES_URL,
+      ssl: process.env.NODE_ENV === 'production' || POSTGRES_URL.includes('sslmode=') ? { rejectUnauthorized: false } : false,
+      max: 20,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 5000,
+    });
+    console.log('[Database] Connected to external PostgreSQL database pool.');
+  } catch (err) {
+    console.error('[Database] Failed to initialize PostgreSQL pool:', err);
+  }
 }
 
-const DB_PATH = path.join(DATA_DIR, 'omniapply.db');
+// Fallback SQLite WASM persistence path resolution
+function getWritableDbPath(): string {
+  try {
+    const dataDir = process.env.DATA_DIR || path.join(process.cwd(), 'data');
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+    const testFile = path.join(dataDir, `.write_test_${Date.now()}`);
+    fs.writeFileSync(testFile, 'ok');
+    fs.unlinkSync(testFile);
+    return path.join(dataDir, 'omniapply.db');
+  } catch {
+    // If working directory is read-only (e.g. Vercel Lambda or read-only container), write to /tmp
+    const tmpDir = path.join('/tmp', 'omniapply_data');
+    if (!fs.existsSync(tmpDir)) {
+      try { fs.mkdirSync(tmpDir, { recursive: true }); } catch {}
+    }
+    return path.join(tmpDir, 'omniapply.db');
+  }
+}
 
+const DB_PATH = getWritableDbPath();
 let dbInstance: SqlJsDatabase | null = null;
-let dbInitPromise: Promise<SqlJsDatabase> | null = null;
+let dbInitPromise: Promise<any> | null = null;
 
 function persistDb() {
-  if (!dbInstance) return;
+  if (pgPool || !dbInstance) return;
   try {
     const data = dbInstance.export();
     const buffer = Buffer.from(data);
     fs.writeFileSync(DB_PATH, buffer);
   } catch (err) {
-    console.error('[SQLiteDatabase] Failed to persist database to disk:', err);
+    // Non-blocking catch for read-only filesystem environments
+    console.warn('[SQLiteDatabase] Disk persist warning:', err);
   }
 }
 
-function initTablesSync(db: SqlJsDatabase) {
-  try {
-    db.run('PRAGMA foreign_keys = ON;');
-    db.run(`
-      CREATE TABLE IF NOT EXISTS users (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        email TEXT UNIQUE NOT NULL,
-        is_verified INTEGER NOT NULL DEFAULT 0,
-        title TEXT,
-        location TEXT,
-        avatar_url TEXT,
-        verification_code TEXT,
-        password_hash TEXT,
-        password_salt TEXT,
-        saved_urls TEXT,
-        created_at TEXT NOT NULL
-      );
-    `);
-    db.run(`
-      CREATE TABLE IF NOT EXISTS user_tokens (
-        token TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-      );
-    `);
-    db.run(`
-      CREATE TABLE IF NOT EXISTS candidate_analyses (
-        user_id TEXT PRIMARY KEY,
-        full_name TEXT NOT NULL,
-        data_json TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-      );
-    `);
-    db.run(`
-      CREATE TABLE IF NOT EXISTS job_applications (
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        job_title TEXT NOT NULL,
-        company_name TEXT NOT NULL,
-        target_platform TEXT NOT NULL,
-        status TEXT NOT NULL,
-        data_json TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        updated_at TEXT NOT NULL,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-      );
-    `);
-    db.run(`
-      CREATE TABLE IF NOT EXISTS agent_tasks (
-        task_id TEXT PRIMARY KEY,
-        type TEXT NOT NULL,
-        status TEXT NOT NULL,
-        data_json TEXT NOT NULL,
-        created_at TEXT NOT NULL,
-        completed_at TEXT
-      );
-    `);
-    db.run(`
-      CREATE TABLE IF NOT EXISTS chat_messages (
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        sender TEXT NOT NULL,
-        text TEXT NOT NULL,
-        topic TEXT,
-        referenced_job_id TEXT,
-        timestamp TEXT NOT NULL,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-      );
-    `);
-    db.run(`
-      CREATE TABLE IF NOT EXISTS activity_logs (
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        action TEXT NOT NULL,
-        category TEXT NOT NULL,
-        details TEXT NOT NULL,
-        ip_address TEXT,
-        meta_json TEXT,
-        timestamp TEXT NOT NULL,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-      );
-    `);
+function convertParamsForPg(sql: string): string {
+  let paramIndex = 1;
+  return sql.replace(/\?/g, () => `$${paramIndex++}`);
+}
 
-    // Seed default demo user if missing
-    const stmt = db.prepare('SELECT * FROM users WHERE id = ?;', ['usr-demo-001']);
-    const hasDemo = stmt.step();
-    stmt.free();
-
-    if (!hasDemo) {
-      const demoPass = hashPassword('password123');
-      const now = new Date().toISOString();
-      const savedUrls = JSON.stringify({
-        linkedin: '',
-        github: '',
-        leetcode: '',
-        substack: '',
-        twitter: '',
-        portfolio: '',
-        resumeText: '',
-      });
-      db.run(
-        `INSERT OR REPLACE INTO users (id, name, email, is_verified, title, location, avatar_url, verification_code, password_hash, password_salt, saved_urls, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-        [
-          'usr-demo-001',
-          'Shivam Singh',
-          'singhshivam20009@gmail.com',
-          1,
-          'Full-Stack Software Engineer',
-          'Bangalore, India',
-          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-          null,
-          demoPass.hash,
-          demoPass.salt,
-          savedUrls,
-          now,
-        ]
-      );
-      db.run(
-        'INSERT OR REPLACE INTO user_tokens (token, user_id, created_at) VALUES (?, ?, ?);',
-        ['demo-token-12345', 'usr-demo-001', now]
-      );
+async function initSchema() {
+  if (pgPool) {
+    const client = await pgPool.connect();
+    try {
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS users (
+          id VARCHAR(255) PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          email VARCHAR(255) UNIQUE NOT NULL,
+          is_verified INT NOT NULL DEFAULT 0,
+          title VARCHAR(255),
+          location VARCHAR(255),
+          avatar_url TEXT,
+          verification_code VARCHAR(255),
+          password_hash TEXT,
+          password_salt TEXT,
+          saved_urls TEXT,
+          created_at VARCHAR(255) NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS user_tokens (
+          token VARCHAR(512) PRIMARY KEY,
+          user_id VARCHAR(255) NOT NULL,
+          created_at VARCHAR(255) NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS candidate_analyses (
+          user_id VARCHAR(255) PRIMARY KEY,
+          full_name VARCHAR(255) NOT NULL,
+          data_json TEXT NOT NULL,
+          created_at VARCHAR(255) NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS job_applications (
+          id VARCHAR(255) PRIMARY KEY,
+          user_id VARCHAR(255) NOT NULL,
+          job_title VARCHAR(255) NOT NULL,
+          company_name VARCHAR(255) NOT NULL,
+          target_platform VARCHAR(255) NOT NULL,
+          status VARCHAR(255) NOT NULL,
+          data_json TEXT NOT NULL,
+          created_at VARCHAR(255) NOT NULL,
+          updated_at VARCHAR(255) NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS agent_tasks (
+          task_id VARCHAR(255) PRIMARY KEY,
+          type VARCHAR(255) NOT NULL,
+          status VARCHAR(255) NOT NULL,
+          data_json TEXT NOT NULL,
+          created_at VARCHAR(255) NOT NULL,
+          completed_at VARCHAR(255)
+        );
+        CREATE TABLE IF NOT EXISTS chat_messages (
+          id VARCHAR(255) PRIMARY KEY,
+          user_id VARCHAR(255) NOT NULL,
+          sender VARCHAR(255) NOT NULL,
+          text TEXT NOT NULL,
+          topic VARCHAR(255),
+          referenced_job_id VARCHAR(255),
+          timestamp VARCHAR(255) NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS activity_logs (
+          id VARCHAR(255) PRIMARY KEY,
+          user_id VARCHAR(255) NOT NULL,
+          action VARCHAR(255) NOT NULL,
+          category VARCHAR(255) NOT NULL,
+          details TEXT NOT NULL,
+          ip_address VARCHAR(255),
+          meta_json TEXT,
+          timestamp VARCHAR(255) NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+        CREATE INDEX IF NOT EXISTS idx_user_tokens_user_id ON user_tokens(user_id);
+        CREATE INDEX IF NOT EXISTS idx_jobs_user_id ON job_applications(user_id);
+        CREATE INDEX IF NOT EXISTS idx_chat_user_id ON chat_messages(user_id);
+        CREATE INDEX IF NOT EXISTS idx_logs_user_id ON activity_logs(user_id);
+      `);
+    } finally {
+      client.release();
     }
-    persistDb();
-    console.log(`[SQLiteDatabase] Relational SQL database initialized cleanly at ${DB_PATH}`);
-  } catch (err) {
-    console.error('[SQLiteDatabase] Schema init error:', err);
+    return;
   }
-}
 
-async function getDb(): Promise<SqlJsDatabase> {
-  if (dbInstance) return dbInstance;
-  if (dbInitPromise) return dbInitPromise;
-
-  dbInitPromise = (async () => {
-    const SQL = await initSqlJs();
-    if (fs.existsSync(DB_PATH)) {
+  const SQL = await initSqlJs();
+  if (fs.existsSync(DB_PATH)) {
+    try {
       const fileBuffer = fs.readFileSync(DB_PATH);
       dbInstance = new SQL.Database(fileBuffer);
-    } else {
+    } catch {
       dbInstance = new SQL.Database();
     }
-    initTablesSync(dbInstance);
-    return dbInstance;
-  })();
+  } else {
+    dbInstance = new SQL.Database();
+  }
 
+  dbInstance.run('PRAGMA foreign_keys = ON;');
+  dbInstance.run(`
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      email TEXT UNIQUE NOT NULL,
+      is_verified INTEGER NOT NULL DEFAULT 0,
+      title TEXT,
+      location TEXT,
+      avatar_url TEXT,
+      verification_code TEXT,
+      password_hash TEXT,
+      password_salt TEXT,
+      saved_urls TEXT,
+      created_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS user_tokens (
+      token TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+    CREATE TABLE IF NOT EXISTS candidate_analyses (
+      user_id TEXT PRIMARY KEY,
+      full_name TEXT NOT NULL,
+      data_json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+    CREATE TABLE IF NOT EXISTS job_applications (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      job_title TEXT NOT NULL,
+      company_name TEXT NOT NULL,
+      target_platform TEXT NOT NULL,
+      status TEXT NOT NULL,
+      data_json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+    CREATE TABLE IF NOT EXISTS agent_tasks (
+      task_id TEXT PRIMARY KEY,
+      type TEXT NOT NULL,
+      status TEXT NOT NULL,
+      data_json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      completed_at TEXT
+    );
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      sender TEXT NOT NULL,
+      text TEXT NOT NULL,
+      topic TEXT,
+      referenced_job_id TEXT,
+      timestamp TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+    CREATE TABLE IF NOT EXISTS activity_logs (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      action TEXT NOT NULL,
+      category TEXT NOT NULL,
+      details TEXT NOT NULL,
+      ip_address TEXT,
+      meta_json TEXT,
+      timestamp TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+  `);
+
+  // Seed default demo user if missing
+  const stmt = dbInstance.prepare('SELECT * FROM users WHERE id = ?;', ['usr-demo-001']);
+  const hasDemo = stmt.step();
+  stmt.free();
+
+  if (!hasDemo) {
+    const demoPass = hashPassword('password123');
+    const now = new Date().toISOString();
+    const savedUrls = JSON.stringify({
+      linkedin: '',
+      github: '',
+      leetcode: '',
+      substack: '',
+      twitter: '',
+      portfolio: '',
+      resumeText: '',
+    });
+    dbInstance.run(
+      `INSERT OR REPLACE INTO users (id, name, email, is_verified, title, location, avatar_url, verification_code, password_hash, password_salt, saved_urls, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      [
+        'usr-demo-001',
+        'Shivam Singh',
+        'singhshivam20009@gmail.com',
+        1,
+        'Full-Stack Software Engineer',
+        'Bangalore, India',
+        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+        null,
+        demoPass.hash,
+        demoPass.salt,
+        savedUrls,
+        now,
+      ]
+    );
+    dbInstance.run(
+      'INSERT OR REPLACE INTO user_tokens (token, user_id, created_at) VALUES (?, ?, ?);',
+      ['demo-token-12345', 'usr-demo-001', now]
+    );
+  }
+  persistDb();
+  console.log(`[SQLiteDatabase] Relational SQL database initialized cleanly at ${DB_PATH}`);
+}
+
+async function getDb(): Promise<any> {
+  if (dbInitPromise) return dbInitPromise;
+  dbInitPromise = initSchema().catch((err) => {
+    console.error('[Database] Schema initialization failed:', err);
+    dbInitPromise = null;
+    throw err;
+  });
   return dbInitPromise;
 }
 
 async function runSql(sql: string, params: any[] = []): Promise<{ lastID: number; changes: number }> {
-  const instance = await getDb();
-  instance.run(sql, params);
+  await getDb();
+  if (pgPool) {
+    let pgSql = convertParamsForPg(sql);
+    // Replace SQLite specific "INSERT OR REPLACE INTO" with Postgres upsert syntax if applicable
+    if (pgSql.includes('INSERT OR REPLACE INTO')) {
+      pgSql = pgSql.replace('INSERT OR REPLACE INTO', 'INSERT INTO');
+      // Append ON CONFLICT DO UPDATE if matching primary key
+      if (pgSql.includes('user_tokens')) {
+        pgSql += ' ON CONFLICT (token) DO UPDATE SET user_id = EXCLUDED.user_id, created_at = EXCLUDED.created_at';
+      } else if (pgSql.includes('users')) {
+        pgSql += ' ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, email=EXCLUDED.email, is_verified=EXCLUDED.is_verified, title=EXCLUDED.title, location=EXCLUDED.location, avatar_url=EXCLUDED.avatar_url, verification_code=EXCLUDED.verification_code, password_hash=EXCLUDED.password_hash, password_salt=EXCLUDED.password_salt, saved_urls=EXCLUDED.saved_urls';
+      } else if (pgSql.includes('candidate_analyses')) {
+        pgSql += ' ON CONFLICT (user_id) DO UPDATE SET full_name=EXCLUDED.full_name, data_json=EXCLUDED.data_json';
+      } else if (pgSql.includes('job_applications')) {
+        pgSql += ' ON CONFLICT (id) DO UPDATE SET job_title=EXCLUDED.job_title, company_name=EXCLUDED.company_name, target_platform=EXCLUDED.target_platform, status=EXCLUDED.status, data_json=EXCLUDED.data_json, updated_at=EXCLUDED.updated_at';
+      } else if (pgSql.includes('agent_tasks')) {
+        pgSql += ' ON CONFLICT (task_id) DO UPDATE SET status=EXCLUDED.status, data_json=EXCLUDED.data_json, completed_at=EXCLUDED.completed_at';
+      }
+    }
+    const res = await pgPool.query(pgSql, params);
+    return { lastID: 0, changes: res.rowCount || 0 };
+  }
+
+  dbInstance!.run(sql, params);
   persistDb();
   return { lastID: 0, changes: 1 };
 }
 
 async function getSql<T = any>(sql: string, params: any[] = []): Promise<T | undefined> {
-  const instance = await getDb();
-  const stmt = instance.prepare(sql, params);
+  await getDb();
+  if (pgPool) {
+    const pgSql = convertParamsForPg(sql);
+    const res = await pgPool.query(pgSql, params);
+    return res.rows[0] as T | undefined;
+  }
+
+  const stmt = dbInstance!.prepare(sql, params);
   if (stmt.step()) {
     const obj = stmt.getAsObject() as T;
     stmt.free();
@@ -211,8 +346,14 @@ async function getSql<T = any>(sql: string, params: any[] = []): Promise<T | und
 }
 
 async function allSql<T = any>(sql: string, params: any[] = []): Promise<T[]> {
-  const instance = await getDb();
-  const stmt = instance.prepare(sql, params);
+  await getDb();
+  if (pgPool) {
+    const pgSql = convertParamsForPg(sql);
+    const res = await pgPool.query(pgSql, params);
+    return res.rows as T[];
+  }
+
+  const stmt = dbInstance!.prepare(sql, params);
   const rows: T[] = [];
   while (stmt.step()) {
     rows.push(stmt.getAsObject() as T);
@@ -247,7 +388,7 @@ export class SQLiteDatabase {
     );
   }
 
-  // --- Synchronous Sync Cache for Fast Lookup & Async DB Sync ---
+  // --- Fast In-Memory Cache + Persistent Database Fallback + HMAC Stateless Token Verification ---
   private userTokensMap: Map<string, string> = new Map([['demo-token-12345', 'usr-demo-001']]);
 
   async getUserById(id: string): Promise<StoredUser | undefined> {
@@ -262,8 +403,45 @@ export class SQLiteDatabase {
     return this.mapUserRow(row);
   }
 
-  getUserIdFromToken(token: string): string | undefined {
-    return this.userTokensMap.get(token);
+  async getUserIdFromToken(token: string): Promise<string | undefined> {
+    if (!token) return undefined;
+
+    // 1. Check fast in-memory map cache
+    if (this.userTokensMap.has(token)) {
+      return this.userTokensMap.get(token);
+    }
+
+    // 2. Query persistent user_tokens database table
+    try {
+      const tokenRow = await getSql<{ user_id: string }>(
+        'SELECT user_id FROM user_tokens WHERE token = ?;',
+        [token]
+      );
+      if (tokenRow?.user_id) {
+        this.userTokensMap.set(token, tokenRow.user_id);
+        return tokenRow.user_id;
+      }
+    } catch (e) {
+      console.warn('[Database] Failed querying persistent token table:', e);
+    }
+
+    // 3. Fallback to HMAC token signature verification (Stateless & Cold-start resilient)
+    const tokenVerification = verifySignedToken(token);
+    if (tokenVerification.valid && tokenVerification.userId) {
+      const user = await this.getUserById(tokenVerification.userId);
+      if (user) {
+        this.userTokensMap.set(token, user.id);
+        try {
+          await runSql(
+            'INSERT OR REPLACE INTO user_tokens (token, user_id, created_at) VALUES (?, ?, ?);',
+            [token, user.id, new Date().toISOString()]
+          );
+        } catch {}
+        return user.id;
+      }
+    }
+
+    return undefined;
   }
 
   async verifyUserCredentials(email: string, password?: string): Promise<{ success: boolean; user?: UserAccount; token?: string; error?: string }> {
