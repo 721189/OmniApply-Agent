@@ -7,6 +7,7 @@ import { scrapeGitHubProfile, scrapeLeetCodeProfile, scrapeSubstackProfile } fro
 import { generateTailoredResumePackage, buildLatexResumeDocument } from './resumeGenerator';
 import { generateFollowUpSequence, generateIcsCalendarFile } from './followupGenerator';
 import { generateContentWithFallback } from './gemini';
+import { sendVerificationEmail } from './email';
 import { ProfileUrls, PlatformType, JobApplication, AgentTask } from '../src/types';
 
 export async function createApp() {
@@ -24,7 +25,11 @@ export async function createApp() {
     next();
   });
 
-  // --- Sliding Window Rate Limiter Middleware (60 reqs/min per IP) ---
+  // --- In-Memory Instance Rate Limiter Middleware (60 reqs/min per IP) ---
+  // NOTE: This provides lightweight brute-force throttling per container/Node.js process instance.
+  // In horizontally scaled or serverless architectures (e.g. Vercel), each ephemeral instance
+  // isolates its own memory; for cross-instance global coordination, configure an external
+  // key-value coordinator like Upstash Redis / Redis.
   const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
   app.use('/api/', (req, res, next) => {
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
@@ -104,10 +109,12 @@ export async function createApp() {
       return res.status(409).json({ error: 'An account with this email already exists. Please log in.' });
     }
     const result = await db.createUser(name || email.split('@')[0], email, password);
-    console.log(`[Auth Dispatch] Secure verification code dispatched to ${email}`);
+    const emailDispatch = await sendVerificationEmail(email, result.code, name || email.split('@')[0]);
     res.json({
       user: result.user,
       token: result.token,
+      emailDispatched: emailDispatch.success,
+      emailProvider: emailDispatch.provider,
       message: 'Account registered successfully! Verification code dispatched to ' + email,
     });
   });
@@ -125,8 +132,13 @@ export async function createApp() {
     const code = generateSecureVerificationCode();
     user.verificationCode = code;
     await db.insertUserRecord(user);
-    console.log(`[Auth Dispatch] Resent verification code to ${email}`);
-    res.json({ success: true, message: `New verification code sent to ${email}` });
+    const emailDispatch = await sendVerificationEmail(email, code, user.name);
+    res.json({ 
+      success: true, 
+      emailDispatched: emailDispatch.success,
+      emailProvider: emailDispatch.provider,
+      message: `New verification code sent to ${email}` 
+    });
   });
 
   app.post('/api/auth/verify-email', async (req: Request, res: Response) => {

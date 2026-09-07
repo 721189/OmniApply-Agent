@@ -1,7 +1,7 @@
 # 🚀 OmniApply AI — Autonomous Career Intelligence & Multi-Platform Application Engine
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![React](https://img.shields.io/badge/React-18+-61DAFB?style=flat-square&logo=react&logoColor=black)](https://reactjs.org/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)](https://reactjs.org/)
 [![Express](https://img.shields.io/badge/Express-4.x-000000?style=flat-square&logo=express&logoColor=white)](https://expressjs.com/)
 [![Tailwind CSS](https://img.shields.io/badge/TailwindCSS-v4-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 [![Gemini](https://img.shields.io/badge/Gemini_2.5_Flash-Google_AI-4285F4?style=flat-square&logo=google&logoColor=white)](https://ai.google.dev/)
@@ -172,16 +172,16 @@
 
 ## 🛠️ Tech Stack & Dependencies
 
-- **Frontend**: React 18, TypeScript, Tailwind CSS v4, Lucide Icons, Canvas Confetti.
+- **Frontend**: React 19, TypeScript, Tailwind CSS v4, Lucide Icons, Canvas Confetti.
 - **Backend Server**: Express 4, Node.js, TypeScript (`tsx`).
 - **AI Core**: Google Gemini 2.5 Flash via `@google/genai` SDK with deterministic fallback synthesis.
 - **Security & Authentication**:
   - **PBKDF2 Salted Hashing**: 100,000-iteration SHA-512 password hashing with 16-byte cryptographically unique salts via Node `crypto`.
-  - **HMAC-SHA256 Signed Tokens**: 7-day expiration session tokens with constant-time signature verification. Strict token check (no unauthenticated demo fallback).
-  - **CSPRNG OTP Verification**: Cryptographically secure 6-digit codes (`crypto.randomInt`) with timing-safe verification and 15-minute expirations.
+  - **HMAC-SHA256 Signed Tokens**: 7-day expiration session tokens with constant-time signature verification. Requires `JWT_SECRET` (or `SECRET_KEY` alias) in production.
+  - **CSPRNG OTP Verification & Email Dispatch**: Cryptographically secure 6-digit codes (`crypto.randomInt`) with timing-safe verification, 15-minute expirations, and real transactional email dispatch via Resend API (with local dev console logging fallback).
   - **HTTP Security Headers**: Native headers (`X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`, `Referrer-Policy`).
-  - **API Rate Limiting**: Sliding-window rate limiter (60 requests/minute per IP) on `/api/*` endpoints.
-- **Database & Persistence**: Production-ready PostgreSQL storage with relational SQLite WASM fallback for ephemeral preview environments. Supports full data export & restore (`/api/user/export`, `/api/user/import`).
+  - **In-Memory Instance Rate Limiting**: Sliding-window rate limiter (60 requests/minute per IP) on `/api/*` endpoints to throttle brute-force attacks on individual server/container instances (for multi-instance serverless deployments, an external coordinator like Upstash Redis is recommended).
+- **Database & Persistence**: Fail-closed PostgreSQL persistence for production/serverless environments (`DATABASE_URL`). Embedded relational SQLite WASM storage is strictly isolated to local development environments to prevent silent production data loss.
 - **Build & Packaging**: Vite 6, esbuild CommonJS single-bundle compilation (`dist/server.cjs`).
 
 ---
@@ -209,9 +209,19 @@
    ```bash
    cp .env.example .env
    ```
-   Add your Gemini API Key in `.env`:
+   Add your configuration keys in `.env`:
    ```env
+   # Core AI
    GEMINI_API_KEY=your_gemini_api_key_here
+
+   # Session security (required in production, optional in local dev)
+   JWT_SECRET=your_random_64_character_secret_here
+
+   # PostgreSQL connection (required in production, uses SQLite in local dev)
+   DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
+
+   # Optional transactional email dispatch
+   RESEND_API_KEY=re_your_resend_api_key_here
    ```
 
 4. **Start the development server:**

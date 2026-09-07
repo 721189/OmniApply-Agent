@@ -40,7 +40,18 @@ function isPostgresConnectionString(url?: string | null): boolean {
 
 const rawDbUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL;
 const POSTGRES_URL = isPostgresConnectionString(rawDbUrl) ? rawDbUrl!.trim() : null;
+const isProductionOrServerless = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
 let pgPool: Pool | null = null;
+
+// Enforce fail-closed policy in production: no silent fallback to ephemeral SQLite
+if (isProductionOrServerless) {
+  if (!rawDbUrl) {
+    throw new Error('FATAL DATABASE CONFIGURATION ERROR: Production/serverless deployment requires a valid PostgreSQL DATABASE_URL. Ephemeral SQLite fallback is strictly prohibited in production to prevent silent data loss.');
+  }
+  if (!isPostgresConnectionString(rawDbUrl)) {
+    throw new Error('FATAL DATABASE CONFIGURATION ERROR: Production DATABASE_URL must be a valid PostgreSQL URI starting with postgres:// or postgresql://.');
+  }
+}
 
 if (POSTGRES_URL) {
   try {
@@ -56,15 +67,14 @@ if (POSTGRES_URL) {
     });
     console.log('[Database] Configured external PostgreSQL database pool.');
   } catch (err) {
-    console.warn('[Database] Failed to configure PostgreSQL pool:', err);
+    if (isProductionOrServerless) {
+      throw new Error(`FATAL DATABASE ERROR: Failed to configure PostgreSQL pool in production: ${err}`);
+    }
+    console.warn('[Database] Failed to configure PostgreSQL pool in development:', err);
     pgPool = null;
   }
 } else if (rawDbUrl && !isPostgresConnectionString(rawDbUrl)) {
   console.warn('[Database] Configured DATABASE_URL is not a valid PostgreSQL URI (must start with postgres:// or postgresql://). Falling back to embedded SQLite WASM storage.');
-} else if (process.env.NODE_ENV === 'production' || process.env.VERCEL) {
-  console.warn('[Database ARCHITECTURE ALERT] Running in production/serverless mode without DATABASE_URL!');
-  console.warn('[Database ARCHITECTURE ALERT] Local /tmp or SQLite storage is ephemeral and resets on cold starts.');
-  console.warn('[Database ARCHITECTURE ALERT] Set DATABASE_URL (PostgreSQL) for durable production persistence.');
 }
 
 export function getDatabaseStatus() {
@@ -74,9 +84,9 @@ export function getDatabaseStatus() {
     engine: pgPool ? 'PostgreSQL' : 'SQLite WASM',
     durable: !!pgPool,
     poolActive: !!pgPool,
-    mode: pgPool ? 'production-durable' : (isProd || isServerless ? 'ephemeral-serverless-fallback' : 'local-development'),
+    mode: pgPool ? 'production-durable' : (isProd || isServerless ? 'unsupported-ephemeral' : 'local-development'),
     warning: (!pgPool && (isProd || isServerless))
-      ? 'CRITICAL PERSISTENCE ADVISORY: Serverless environment detected without DATABASE_URL. Ephemeral storage is active and will reset across function cold starts. Connect a managed PostgreSQL database (Neon, Supabase, Vercel Postgres) for durable production persistence.'
+      ? 'CRITICAL PERSISTENCE ADVISORY: Serverless/production environment detected without valid PostgreSQL connection.'
       : undefined,
   };
 }
@@ -205,7 +215,11 @@ async function initSchema() {
       console.log('[Database] PostgreSQL schema initialized successfully.');
       return;
     } catch (pgErr: any) {
-      console.warn(`[Database] PostgreSQL initialization failed (${pgErr?.message || pgErr}). Falling back to embedded SQLite WASM storage.`);
+      if (isProductionOrServerless) {
+        console.error('[Database] FATAL: Production PostgreSQL schema initialization failed:', pgErr);
+        throw new Error(`FATAL DATABASE INITIALIZATION ERROR: PostgreSQL schema initialization failed: ${pgErr?.message || pgErr}. Application startup aborted to prevent silent fallback to ephemeral SQLite.`);
+      }
+      console.warn(`[Database] PostgreSQL initialization failed (${pgErr?.message || pgErr}). Falling back to embedded SQLite WASM storage in development.`);
       try {
         await pgPool.end();
       } catch {}

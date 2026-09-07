@@ -1,12 +1,12 @@
 import crypto from 'crypto';
 
 function getSecretKey(): string {
-  const secret = process.env.JWT_SECRET;
+  const secret = process.env.JWT_SECRET || process.env.SECRET_KEY;
   if (!secret) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('FATAL SECURITY ERROR: process.env.JWT_SECRET environment variable must be defined in production environment.');
+    if (process.env.NODE_ENV === 'production' || process.env.VERCEL) {
+      throw new Error('FATAL SECURITY ERROR: JWT_SECRET (or SECRET_KEY) environment variable must be defined in production environment.');
     }
-    console.warn('[SECURITY WARNING] process.env.JWT_SECRET is not defined. Falling back to local development signing key.');
+    console.warn('[SECURITY WARNING] Neither JWT_SECRET nor SECRET_KEY is defined. Falling back to local development signing key.');
     return 'omni-apply-ai-dev-only-jwt-secret-key-2026';
   }
   return secret;
@@ -18,21 +18,21 @@ export interface PasswordRecord {
 }
 
 /**
- * PBKDF2 salted password hashing (10,000 iterations, SHA-512)
+ * PBKDF2 salted password hashing (100,000 iterations, SHA-512)
  */
 export function hashPassword(password: string, salt?: string): PasswordRecord {
   const actualSalt = salt || crypto.randomBytes(16).toString('hex');
-  const hash = crypto.pbkdf2Sync(password, actualSalt, 10000, 64, 'sha512').toString('hex');
+  const hash = crypto.pbkdf2Sync(password, actualSalt, 100000, 64, 'sha512').toString('hex');
   return { hash, salt: actualSalt };
 }
 
 /**
- * Timing-safe password verification
+ * Timing-safe password verification (100,000 iterations, SHA-512)
  */
 export function verifyPassword(password: string, savedHash?: string, salt?: string): boolean {
   if (!password || !savedHash || !salt) return false;
   try {
-    const newHash = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
+    const newHash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
     const a = Buffer.from(newHash, 'hex');
     const b = Buffer.from(savedHash, 'hex');
     if (a.length !== b.length) return false;
