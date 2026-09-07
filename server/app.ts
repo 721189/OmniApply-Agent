@@ -1,5 +1,6 @@
 import express, { Request, Response } from 'express';
 import path from 'path';
+import { randomUUID } from 'crypto';
 import { db } from './db';
 import { analyzeCandidateProfiles } from './analyzer';
 import { generateApplicationPackage } from './appGenerator';
@@ -16,6 +17,31 @@ export async function createApp() {
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
 
+  // --- Observability & Request Correlation Middleware ---
+  app.use((req: Request, res: Response, next) => {
+    const startTime = Date.now();
+    const requestId = (req.headers['x-request-id'] as string) || randomUUID();
+    (req as any).id = requestId;
+    res.setHeader('X-Request-Id', requestId);
+
+    res.on('finish', () => {
+      const duration = Date.now() - startTime;
+      if (req.path.startsWith('/api') && req.path !== '/api/health') {
+        const logData = {
+          requestId,
+          method: req.method,
+          path: req.path,
+          statusCode: res.statusCode,
+          durationMs: duration,
+          ip: req.ip || req.socket.remoteAddress || 'unknown',
+        };
+        console.log(`[HTTP] ${logData.method} ${logData.path} ${logData.statusCode} in ${logData.durationMs}ms (req: ${logData.requestId})`);
+      }
+    });
+
+    next();
+  });
+
   // --- Security Headers Middleware ---
   app.use((req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -25,54 +51,89 @@ export async function createApp() {
     next();
   });
 
-  // --- Rate Limiter Middleware (Instance sliding window + Upstash Redis coordination if configured) ---
-  const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-  app.use('/api/', async (req, res, next) => {
+  // --- Tiered & Atomic Rate Limiter (Upstash Redis Atomic Pipeline + Memory Map Fallback) ---
+  const localRateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+  app.use('/api/', async (req: Request, res: Response, next) => {
+    // Determine tier limit based on route sensitivity
+    let limit = 100; // General default: 100 req/min
+    if (req.path.startsWith('/auth/')) {
+      limit = 15; // Auth endpoints: 15 req/min (anti-bruteforce)
+    } else if (req.path.startsWith('/analyze-profiles') || req.path.startsWith('/generate-application') || req.path.startsWith('/chat/message')) {
+      limit = 20; // Heavy AI endpoints: 20 req/min (abuse & resource protection)
+    }
+
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
     const now = Date.now();
-    const windowMs = 60 * 1000;
-    const limit = 60;
+    const windowSeconds = 60;
+    const windowBucket = Math.floor(now / (windowSeconds * 1000));
+    const rateLimitKey = `ratelimit:${ip}:${req.path.split('/')[1] || 'api'}:${windowBucket}`;
 
-    // 1. Check if Upstash Redis REST distributed rate limiter is configured
+    // 1. Upstash Redis Atomic Pipeline execution (INCR + EXPIRE in one atomic roundtrip)
     const upstashUrl = process.env.UPSTASH_REDIS_REST_URL;
     const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+
     if (upstashUrl && upstashToken) {
       try {
-        const key = `ratelimit:${ip}:${Math.floor(now / windowMs)}`;
-        const upstashRes = await fetch(`${upstashUrl}/incr/${key}`, {
-          headers: { Authorization: `Bearer ${upstashToken}` },
+        const pipelineRes = await fetch(`${upstashUrl}/pipeline`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${upstashToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify([
+            ['INCR', rateLimitKey],
+            ['EXPIRE', rateLimitKey, windowSeconds * 2],
+          ]),
         });
-        if (upstashRes.ok) {
-          const data: any = await upstashRes.json();
-          const currentCount = Number(data.result);
-          if (currentCount === 1) {
-            // Set 60s TTL on new key
-            await fetch(`${upstashUrl}/expire/${key}/60`, {
-              headers: { Authorization: `Bearer ${upstashToken}` },
-            });
-          }
+
+        if (pipelineRes.ok) {
+          const results: any = await pipelineRes.json();
+          // results = [{ result: 1 }, { result: 1 }]
+          const currentCount = Number(results[0]?.result || 1);
+          const remaining = Math.max(0, limit - currentCount);
+          const resetTime = (windowBucket + 1) * windowSeconds;
+
+          res.setHeader('X-RateLimit-Limit', limit);
+          res.setHeader('X-RateLimit-Remaining', remaining);
+          res.setHeader('X-RateLimit-Reset', resetTime);
+
           if (currentCount > limit) {
-            return res.status(429).json({ error: 'Too many requests. Please try again in a minute.' });
+            return res.status(429).json({
+              error: 'Too many requests. Please slow down and try again.',
+              retryAfterSeconds: Math.max(1, resetTime - Math.floor(now / 1000)),
+            });
           }
           return next();
         }
       } catch (redisErr) {
-        // Fall back to local map on network error
+        // Fall through to memory map on connection issue
       }
     }
 
-    // 2. Local in-memory sliding window rate limiter
-    let record = rateLimitMap.get(ip);
+    // 2. High-performance In-Memory sliding window rate limiter fallback
+    let record = localRateLimitMap.get(rateLimitKey);
     if (!record || now > record.resetAt) {
-      record = { count: 1, resetAt: now + windowMs };
-      rateLimitMap.set(ip, record);
+      record = { count: 1, resetAt: (windowBucket + 1) * windowSeconds * 1000 };
+      localRateLimitMap.set(rateLimitKey, record);
     } else {
       record.count++;
     }
 
+    const remaining = Math.max(0, limit - record.count);
+    const resetTime = Math.floor(record.resetAt / 1000);
+
+    res.setHeader('X-RateLimit-Limit', limit);
+    res.setHeader('X-RateLimit-Remaining', remaining);
+    res.setHeader('X-RateLimit-Reset', resetTime);
+
     if (record.count > limit) {
-      return res.status(429).json({ error: 'Too many requests. Please try again in a minute.' });
+      return res.status(429).json({
+        error: 'Too many requests. Please slow down and try again.',
+        retryAfterSeconds: Math.max(1, resetTime - Math.floor(now / 1000)),
+      });
     }
+
     next();
   });
 
@@ -827,7 +888,7 @@ Guidelines:
     res.json({ success: deleted });
   });
 
-  // --- 6. Task Pipeline & Celery / Redis Telemetry Routes ---
+  // --- 6. Task Pipeline & Async Worker Telemetry Routes ---
   app.get('/api/tasks', async (req: Request, res: Response) => {
     const tasks = await db.getAllTasks();
     res.json({ tasks });
@@ -841,8 +902,56 @@ Guidelines:
     res.json({ task });
   });
 
-  // --- 7. User Data Export & Import (GDPR / Encrypted Backup) ---
-  app.get('/api/user/export', async (req: Request, res: Response) => {
+  // --- Observability & System Metrics Endpoint ---
+  app.get('/api/metrics', async (req: Request, res: Response) => {
+    const mem = process.memoryUsage();
+    const dbProbe = await db.probeHealth();
+    const tasks = await db.getAllTasks();
+    const activeTasks = tasks.filter(t => t.status === 'running' || t.status === 'queued').length;
+
+    res.json({
+      uptimeSeconds: Math.floor(process.uptime()),
+      timestamp: new Date().toISOString(),
+      database: {
+        engine: dbProbe.engine,
+        status: dbProbe.status,
+        latencyMs: dbProbe.latencyMs,
+        durable: dbProbe.durable,
+      },
+      memory: {
+        rssMb: Math.round((mem.rss / 1024 / 1024) * 100) / 100,
+        heapTotalMb: Math.round((mem.heapTotal / 1024 / 1024) * 100) / 100,
+        heapUsedMb: Math.round((mem.heapUsed / 1024 / 1024) * 100) / 100,
+      },
+      queue: {
+        totalTasks: tasks.length,
+        activeTasks,
+        completedTasks: tasks.filter(t => t.status === 'completed').length,
+        failedTasks: tasks.filter(t => t.status === 'failed').length,
+      },
+      rateLimiter: {
+        redisDistributed: !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN),
+        localTrackedBuckets: localRateLimitMap.size,
+      },
+    });
+  });
+
+  // --- Database Migration Tooling Status Endpoint ---
+  app.get('/api/system/migrations', async (req: Request, res: Response) => {
+    try {
+      const migrations = await db.getAppliedMigrations();
+      res.json({
+        success: true,
+        count: migrations.length,
+        migrations,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || 'Failed to query migration status' });
+    }
+  });
+
+  // --- 7. User Data Export & Import / Backup & Restore (GDPR Compliant) ---
+  app.get(['/api/user/export', '/api/user/backup'], async (req: Request, res: Response) => {
     const user = await getUserFromReq(req);
     if (!user) {
       return res.status(401).json({ error: 'Unauthorized. Bearer token required.' });
@@ -853,7 +962,7 @@ Guidelines:
     res.json(exportData);
   });
 
-  app.post('/api/user/import', async (req: Request, res: Response) => {
+  app.post(['/api/user/import', '/api/user/restore'], async (req: Request, res: Response) => {
     const user = await getUserFromReq(req);
     if (!user) {
       return res.status(401).json({ error: 'Unauthorized. Bearer token required.' });

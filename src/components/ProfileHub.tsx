@@ -428,7 +428,7 @@ export const ProfileHub: React.FC<ProfileHubProps> = ({
                 />
               </div>
               <p className="text-[11px] text-slate-400 font-mono">
-                {activeTask.logs[activeTask.logs.length - 1]?.message || 'Processing candidate streams in Celery worker...'}
+                {activeTask.logs[activeTask.logs.length - 1]?.message || 'Processing candidate streams in asynchronous worker pipeline...'}
               </p>
             </div>
           )}

@@ -358,7 +358,7 @@ export const JobStudio: React.FC<JobStudioProps> = ({
           />
         </div>
 
-        {/* Action Button & Celery Progress Bar */}
+        {/* Action Button & Async Worker Progress Bar */}
         <div className="pt-4 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-xs text-slate-400">
             Platform Engine: <strong className="text-indigo-400 capitalize">{targetPlatform}</strong> Customizer

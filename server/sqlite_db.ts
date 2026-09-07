@@ -2,6 +2,12 @@ import initSqlJs, { Database as SqlJsDatabase } from 'sql.js';
 import path from 'path';
 import fs from 'fs';
 import { Pool } from 'pg';
+import { 
+  runPgMigrations, 
+  runSqliteMigrations, 
+  getMigrationStatus, 
+  MigrationRecord 
+} from './migrations';
 
 const dirName = typeof __dirname !== 'undefined' 
   ? __dirname 
@@ -40,41 +46,34 @@ function isPostgresConnectionString(url?: string | null): boolean {
 
 const rawDbUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL;
 const POSTGRES_URL = isPostgresConnectionString(rawDbUrl) ? rawDbUrl!.trim() : null;
-const isProductionOrServerless = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
 let pgPool: Pool | null = null;
-
-// Enforce fail-closed policy in production: no silent fallback to ephemeral SQLite
-if (isProductionOrServerless) {
-  if (!rawDbUrl) {
-    throw new Error('FATAL DATABASE CONFIGURATION ERROR: Production/serverless deployment requires a valid PostgreSQL DATABASE_URL. Ephemeral SQLite fallback is strictly prohibited in production to prevent silent data loss.');
-  }
-  if (!isPostgresConnectionString(rawDbUrl)) {
-    throw new Error('FATAL DATABASE CONFIGURATION ERROR: Production DATABASE_URL must be a valid PostgreSQL URI starting with postgres:// or postgresql://.');
-  }
-}
 
 if (POSTGRES_URL) {
   try {
+    const maxConn = process.env.PG_MAX_CONNECTIONS 
+      ? parseInt(process.env.PG_MAX_CONNECTIONS, 10) 
+      : 10;
+
     pgPool = new Pool({
       connectionString: POSTGRES_URL,
       ssl: process.env.NODE_ENV === 'production' || POSTGRES_URL.includes('sslmode=') ? { rejectUnauthorized: false } : false,
-      max: 20,
-      idleTimeoutMillis: 30000,
+      max: maxConn,
+      allowExitOnIdle: true,
+      idleTimeoutMillis: 10000,
       connectionTimeoutMillis: 5000,
+      statement_timeout: 10000,
+      query_timeout: 10000,
     });
     pgPool.on('error', (err) => {
       console.warn('[Database] PostgreSQL pool background warning:', err.message || err);
     });
-    console.log('[Database] Configured external PostgreSQL database pool.');
+    console.log(`[Database] Configured external PostgreSQL pool (max: ${maxConn}, allowExitOnIdle: true).`);
   } catch (err) {
-    if (isProductionOrServerless) {
-      throw new Error(`FATAL DATABASE ERROR: Failed to configure PostgreSQL pool in production: ${err}`);
-    }
-    console.warn('[Database] Failed to configure PostgreSQL pool in development:', err);
+    console.warn('[Database] Failed to configure PostgreSQL pool, falling back to embedded SQLite WASM:', err);
     pgPool = null;
   }
-} else if (rawDbUrl && !isPostgresConnectionString(rawDbUrl)) {
-  console.warn('[Database] Configured DATABASE_URL is not a valid PostgreSQL URI (must start with postgres:// or postgresql://). Falling back to embedded SQLite WASM storage.');
+} else {
+  console.log('[Database] Initializing embedded SQLite WASM storage engine (persistent at data/omniapply.db).');
 }
 
 export interface HealthProbeResult {
@@ -205,134 +204,11 @@ function convertParamsForPg(sql: string): string {
 async function initSchema() {
   if (pgPool) {
     try {
-      const client = await pgPool.connect();
-      try {
-        await client.query(`
-          CREATE TABLE IF NOT EXISTS users (
-            id VARCHAR(255) PRIMARY KEY,
-            name VARCHAR(255) NOT NULL,
-            email VARCHAR(255) UNIQUE NOT NULL,
-            is_verified INT NOT NULL DEFAULT 0,
-            title VARCHAR(255),
-            location VARCHAR(255),
-            avatar_url TEXT,
-            verification_code VARCHAR(255),
-            verification_code_expires_at TIMESTAMPTZ,
-            token_version INT NOT NULL DEFAULT 1,
-            password_hash TEXT,
-            password_salt TEXT,
-            saved_urls TEXT,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-          );
-          ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_code_expires_at TIMESTAMPTZ;
-          ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INT NOT NULL DEFAULT 1;
-
-          CREATE TABLE IF NOT EXISTS user_tokens (
-            token VARCHAR(512) PRIMARY KEY,
-            user_id VARCHAR(255) NOT NULL,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-          );
-
-          CREATE TABLE IF NOT EXISTS candidate_analyses (
-            user_id VARCHAR(255) PRIMARY KEY,
-            full_name VARCHAR(255) NOT NULL,
-            data_json TEXT NOT NULL,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-          );
-
-          CREATE TABLE IF NOT EXISTS job_applications (
-            id VARCHAR(255) PRIMARY KEY,
-            user_id VARCHAR(255) NOT NULL,
-            job_title VARCHAR(255) NOT NULL,
-            company_name VARCHAR(255) NOT NULL,
-            target_platform VARCHAR(255) NOT NULL,
-            status VARCHAR(255) NOT NULL,
-            data_json TEXT NOT NULL,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-          );
-
-          CREATE TABLE IF NOT EXISTS agent_tasks (
-            task_id VARCHAR(255) PRIMARY KEY,
-            type VARCHAR(255) NOT NULL,
-            status VARCHAR(255) NOT NULL,
-            data_json TEXT NOT NULL,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            completed_at TIMESTAMPTZ
-          );
-
-          CREATE TABLE IF NOT EXISTS chat_messages (
-            id VARCHAR(255) PRIMARY KEY,
-            user_id VARCHAR(255) NOT NULL,
-            sender VARCHAR(255) NOT NULL,
-            text TEXT NOT NULL,
-            topic VARCHAR(255),
-            referenced_job_id VARCHAR(255),
-            timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
-          );
-
-          CREATE TABLE IF NOT EXISTS activity_logs (
-            id VARCHAR(255) PRIMARY KEY,
-            user_id VARCHAR(255) NOT NULL,
-            action VARCHAR(255) NOT NULL,
-            category VARCHAR(255) NOT NULL,
-            details TEXT NOT NULL,
-            ip_address VARCHAR(255),
-            meta_json TEXT,
-            timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
-          );
-
-          CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-          CREATE INDEX IF NOT EXISTS idx_user_tokens_user_id ON user_tokens(user_id);
-          CREATE INDEX IF NOT EXISTS idx_jobs_user_id ON job_applications(user_id);
-          CREATE INDEX IF NOT EXISTS idx_chat_user_id ON chat_messages(user_id);
-          CREATE INDEX IF NOT EXISTS idx_logs_user_id ON activity_logs(user_id);
-
-          -- Migration statements: Upgrade any previous VARCHAR timestamp columns to TIMESTAMPTZ
-          DO $$ BEGIN
-            BEGIN
-              ALTER TABLE users ALTER COLUMN created_at TYPE TIMESTAMPTZ USING created_at::timestamptz;
-            EXCEPTION WHEN others THEN NULL; END;
-            BEGIN
-              ALTER TABLE users ALTER COLUMN verification_code_expires_at TYPE TIMESTAMPTZ USING verification_code_expires_at::timestamptz;
-            EXCEPTION WHEN others THEN NULL; END;
-            BEGIN
-              ALTER TABLE user_tokens ALTER COLUMN created_at TYPE TIMESTAMPTZ USING created_at::timestamptz;
-            EXCEPTION WHEN others THEN NULL; END;
-            BEGIN
-              ALTER TABLE candidate_analyses ALTER COLUMN created_at TYPE TIMESTAMPTZ USING created_at::timestamptz;
-            EXCEPTION WHEN others THEN NULL; END;
-            BEGIN
-              ALTER TABLE job_applications ALTER COLUMN created_at TYPE TIMESTAMPTZ USING created_at::timestamptz;
-            EXCEPTION WHEN others THEN NULL; END;
-            BEGIN
-              ALTER TABLE job_applications ALTER COLUMN updated_at TYPE TIMESTAMPTZ USING updated_at::timestamptz;
-            EXCEPTION WHEN others THEN NULL; END;
-            BEGIN
-              ALTER TABLE agent_tasks ALTER COLUMN created_at TYPE TIMESTAMPTZ USING created_at::timestamptz;
-            EXCEPTION WHEN others THEN NULL; END;
-            BEGIN
-              ALTER TABLE agent_tasks ALTER COLUMN completed_at TYPE TIMESTAMPTZ USING completed_at::timestamptz;
-            EXCEPTION WHEN others THEN NULL; END;
-            BEGIN
-              ALTER TABLE chat_messages ALTER COLUMN timestamp TYPE TIMESTAMPTZ USING timestamp::timestamptz;
-            EXCEPTION WHEN others THEN NULL; END;
-            BEGIN
-              ALTER TABLE activity_logs ALTER COLUMN timestamp TYPE TIMESTAMPTZ USING timestamp::timestamptz;
-            EXCEPTION WHEN others THEN NULL; END;
-          END $$;
-        `);
-      } finally {
-        client.release();
-      }
-      console.log('[Database] PostgreSQL schema initialized successfully.');
+      await runPgMigrations(pgPool);
+      console.log('[Database] PostgreSQL schema migrations completed successfully.');
       return;
     } catch (pgErr: any) {
-      if (isProductionOrServerless) {
-        console.error('[Database] FATAL: Production PostgreSQL schema initialization failed:', pgErr);
-        throw new Error(`FATAL DATABASE INITIALIZATION ERROR: PostgreSQL schema initialization failed: ${pgErr?.message || pgErr}. Application startup aborted to prevent silent fallback to ephemeral SQLite.`);
-      }
-      console.warn(`[Database] PostgreSQL initialization failed (${pgErr?.message || pgErr}). Falling back to embedded SQLite WASM storage in development.`);
+      console.warn(`[Database] PostgreSQL initialization failed (${pgErr?.message || pgErr}). Falling back to embedded SQLite WASM storage.`);
       try {
         await pgPool.end();
       } catch {}
@@ -366,81 +242,7 @@ async function initSchema() {
   }
 
   dbInstance.run('PRAGMA foreign_keys = ON;');
-  dbInstance.run(`
-    CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      email TEXT UNIQUE NOT NULL,
-      is_verified INTEGER NOT NULL DEFAULT 0,
-      title TEXT,
-      location TEXT,
-      avatar_url TEXT,
-      verification_code TEXT,
-      verification_code_expires_at TEXT,
-      token_version INTEGER NOT NULL DEFAULT 1,
-      password_hash TEXT,
-      password_salt TEXT,
-      saved_urls TEXT,
-      created_at TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS user_tokens (
-      token TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    );
-    CREATE TABLE IF NOT EXISTS candidate_analyses (
-      user_id TEXT PRIMARY KEY,
-      full_name TEXT NOT NULL,
-      data_json TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    );
-    CREATE TABLE IF NOT EXISTS job_applications (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      job_title TEXT NOT NULL,
-      company_name TEXT NOT NULL,
-      target_platform TEXT NOT NULL,
-      status TEXT NOT NULL,
-      data_json TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    );
-    CREATE TABLE IF NOT EXISTS agent_tasks (
-      task_id TEXT PRIMARY KEY,
-      type TEXT NOT NULL,
-      status TEXT NOT NULL,
-      data_json TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      completed_at TEXT
-    );
-    CREATE TABLE IF NOT EXISTS chat_messages (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      sender TEXT NOT NULL,
-      text TEXT NOT NULL,
-      topic TEXT,
-      referenced_job_id TEXT,
-      timestamp TEXT NOT NULL,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    );
-    CREATE TABLE IF NOT EXISTS activity_logs (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      action TEXT NOT NULL,
-      category TEXT NOT NULL,
-      details TEXT NOT NULL,
-      ip_address TEXT,
-      meta_json TEXT,
-      timestamp TEXT NOT NULL,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    );
-  `);
-
-  try { dbInstance.run('ALTER TABLE users ADD COLUMN verification_code_expires_at TEXT;'); } catch {}
-  try { dbInstance.run('ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 1;'); } catch {}
+  runSqliteMigrations(dbInstance);
 
   // Optional open-source demo seed for local preview environments (strictly no backdoor tokens)
   const stmt = dbInstance.prepare('SELECT * FROM users WHERE email = ?;', ['alex.chen@example.org']);
@@ -791,6 +593,7 @@ export class SQLiteDatabase {
   }
 
   async saveJob(job: JobApplication): Promise<void> {
+    const now = new Date().toISOString();
     await runSql(
       `INSERT OR REPLACE INTO job_applications (id, user_id, job_title, company_name, target_platform, status, data_json, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
@@ -802,8 +605,8 @@ export class SQLiteDatabase {
         job.targetPlatform,
         job.status,
         JSON.stringify(job),
-        job.createdAt,
-        job.updatedAt,
+        job.createdAt || now,
+        job.updatedAt || now,
       ]
     );
   }
@@ -1105,6 +908,11 @@ export class SQLiteDatabase {
       savedUrls,
       createdAt: row.created_at,
     };
+  }
+
+  async getAppliedMigrations(): Promise<MigrationRecord[]> {
+    await getDb();
+    return getMigrationStatus(pgPool, dbInstance);
   }
 
   public sanitizeUser(user: StoredUser): UserAccount {

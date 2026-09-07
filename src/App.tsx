@@ -151,7 +151,7 @@ export default function App() {
   // 1. Trigger Multi-Platform Profile Analysis
   const handleRunAnalysis = async () => {
     setIsAnalyzing(true);
-    const mockTaskId = `task-celery-${Math.random().toString(36).substring(2, 9)}`;
+    const mockTaskId = `task-analysis-${Math.random().toString(36).substring(2, 9)}`;
     const tempTask: AgentTask = {
       taskId: mockTaskId,
       type: 'profile_analysis',
@@ -159,12 +159,12 @@ export default function App() {
       progress: 15,
       currentStage: 'Scraping LinkedIn & GitHub endpoints...',
       createdAt: new Date().toISOString(),
-      workerId: 'celery-worker-01',
+      workerId: 'async-worker-pipeline-01',
       logs: [
         {
           timestamp: new Date().toISOString(),
           stage: 'INGESTION',
-          workerId: 'celery-worker-01',
+          workerId: 'async-worker-pipeline-01',
           message: 'Connecting to LinkedIn public profile & GitHub REST API...',
           level: 'info',
         },
@@ -190,7 +190,7 @@ export default function App() {
               {
                 timestamp: new Date().toISOString(),
                 stage: 'CORRELATION',
-                workerId: 'celery-worker-01',
+                workerId: 'async-worker-pipeline-01',
                 message: `Parsed signals at ${newProgress}% completion...`,
                 level: 'info',
               },
@@ -246,12 +246,12 @@ export default function App() {
       progress: 20,
       currentStage: `Formatting tailored responses for ${params.targetPlatform.toUpperCase()}...`,
       createdAt: new Date().toISOString(),
-      workerId: 'celery-worker-02',
+      workerId: 'async-worker-pipeline-02',
       logs: [
         {
           timestamp: new Date().toISOString(),
           stage: 'JOB_TARGETING',
-          workerId: 'celery-worker-02',
+          workerId: 'async-worker-pipeline-02',
           message: `Mapping candidate dossier to ${params.companyName} requirements...`,
           level: 'info',
         },
@@ -276,7 +276,7 @@ export default function App() {
               {
                 timestamp: new Date().toISOString(),
                 stage: 'GENERATION',
-                workerId: 'celery-worker-02',
+                workerId: 'async-worker-pipeline-02',
                 message: `Synthesized recruiter package at ${newProgress}%`,
                 level: 'info',
               },
@@ -452,7 +452,7 @@ export default function App() {
           />
         )}
 
-        {/* Celery & Redis Workers Telemetry */}
+        {/* Async Pipeline Workers Telemetry */}
         {activeTab === 'telemetry' && (
           <WorkerTelemetryModal
             tasks={telemetryTasks}

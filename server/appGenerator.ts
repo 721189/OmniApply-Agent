@@ -71,6 +71,12 @@ TASK:
 Create a hyper-personalized, high-converting application package specifically tailored for ${targetPlatform}.
 Highlight concrete projects from their GitHub, problem-solving prowess from LeetCode, and engineering thought leadership from Substack.
 
+CRITICAL ANTI-FABRICATION AND GROUNDING RULES:
+1. Ground all claims STRICTLY in the provided Candidate Dossier.
+2. DO NOT invent arbitrary quantitative percentage improvements (e.g. 'reduced latency by 40%', 'processed 10M events daily') or fictional previous employers that are not in the dossier.
+3. Frame accomplishments around verified engineering decisions: architecture patterns, type safety, modular component separation, test coverage, and algorithmic complexity.
+4. Keep all responses factual, professional, and directly relevant to the target job description.
+
 Return a strictly valid JSON object with the following schema:
 {
   "coverLetter": "Comprehensive, compelling 3-4 paragraph markdown cover letter customized for ${companyName} mentioning specific tech stack alignment, concrete impact from candidate projects, and why this candidate is in the top 1% for ${jobTitle}.",
@@ -138,8 +144,8 @@ Return a strictly valid JSON object with the following schema:
       "Proven public code on GitHub provides verifiable validation of coding standards."
     ],
     "recommendations": [
-      "Mention any auxiliary experience with event streaming (Kafka/SQS) during the initial recruiter screen.",
-      "Highlight the specific latency reduction percentage from your featured GitHub repo in the live interview."
+      "Mention any auxiliary experience with message queues or event streams during the initial recruiter screen.",
+      "Highlight the architectural modularity and testing coverage of your featured GitHub repository during technical interviews."
     ],
     "executiveAlignmentSummary": "The candidate matches 94% of critical requirements with high upside in technical velocity and communication."
   },

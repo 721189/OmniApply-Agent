@@ -154,7 +154,7 @@ export const Header: React.FC<HeaderProps> = ({
                   ? 'bg-emerald-600/90 text-white shadow-md shadow-emerald-600/20'
                   : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
               }`}
-              title="Celery & Redis Worker Telemetry"
+              title="Async Pipeline Worker & Telemetry"
             >
               <Cpu className="h-3.5 w-3.5 text-emerald-400" />
               <span>Workers</span>

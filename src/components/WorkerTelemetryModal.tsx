@@ -32,17 +32,17 @@ export const WorkerTelemetryModal: React.FC<WorkerTelemetryModalProps> = ({
           <div>
             <div className="flex items-center gap-2 mb-1.5">
               <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                Celery & Redis Worker Cluster
+                Async Pipeline Worker Engine
               </span>
               <span className="text-xs text-slate-400">
-                Cluster Health: 100% SLA
+                Worker Health: 100% SLA
               </span>
             </div>
             <h1 className="text-2xl font-black text-white tracking-tight">
-              Agent Worker Pipeline & Cache Telemetry
+              Agent Worker Pipeline & Task Telemetry
             </h1>
             <p className="text-xs text-slate-400 mt-1">
-              Real-time monitoring of asynchronous task queues, Redis memory cache hits, and Gemini 3.8 reasoning pipeline workers.
+              Real-time monitoring of asynchronous task pipelines, Redis rate-limiting coordination, and Gemini reasoning execution.
             </p>
           </div>
 
@@ -60,11 +60,11 @@ export const WorkerTelemetryModal: React.FC<WorkerTelemetryModalProps> = ({
           
           <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800/80">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-slate-300">Celery Workers</span>
+              <span className="text-xs font-bold text-slate-300">Async Workers</span>
               <span className="w-2 h-2 rounded-full bg-emerald-400" />
             </div>
-            <div className="text-xl font-black text-white">4 Online</div>
-            <span className="text-[11px] text-slate-400 font-mono">celery-worker-redis-[01..04]</span>
+            <div className="text-xl font-black text-white">4 Active</div>
+            <span className="text-[11px] text-slate-400 font-mono">async-worker-pipeline-[01..04]</span>
           </div>
 
           <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800/80">
@@ -73,12 +73,12 @@ export const WorkerTelemetryModal: React.FC<WorkerTelemetryModalProps> = ({
               <span className="w-2 h-2 rounded-full bg-emerald-400" />
             </div>
             <div className="text-xl font-black text-indigo-400">Sub-1ms</div>
-            <span className="text-[11px] text-slate-400 font-mono">In-Memory Pub/Sub Queue</span>
+            <span className="text-[11px] text-slate-400 font-mono">Atomic Rate-Limit & Pub/Sub</span>
           </div>
 
           <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800/80">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-bold text-slate-300">Gemini 3.8 Flash</span>
+              <span className="text-xs font-bold text-slate-300">Gemini Reasoning</span>
               <span className="w-2 h-2 rounded-full bg-emerald-400" />
             </div>
             <div className="text-xl font-black text-emerald-400">Active</div>
@@ -102,7 +102,7 @@ export const WorkerTelemetryModal: React.FC<WorkerTelemetryModalProps> = ({
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl space-y-4">
         <h3 className="text-base font-bold text-white flex items-center gap-2">
           <Terminal className="h-4 w-4 text-indigo-400" />
-          <span>Real-Time Celery Task Execution Stream</span>
+          <span>Real-Time Asynchronous Worker Task Stream</span>
         </h3>
 
         {tasks.length === 0 ? (
