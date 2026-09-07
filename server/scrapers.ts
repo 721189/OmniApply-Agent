@@ -213,7 +213,7 @@ export async function scrapeGitHubProfile(urlOrUsername: string): Promise<{
   topLanguages: string[];
   featuredRepos: GithubHighlight[];
   bio?: string;
-  source: 'live_api' | 'fallback_heuristic';
+  source: 'live_api' | 'fallback_heuristic' | 'api_unavailable';
 }> {
   const username = extractUsernameFromUrl(urlOrUsername, 'github');
   if (!username) {
@@ -300,36 +300,19 @@ export async function scrapeGitHubProfile(urlOrUsername: string): Promise<{
       };
     }
   } catch (err) {
-    console.warn(`[GitHub Scraper] Network or rate limit on ${username}, using structured fallback:`, err);
+    console.warn(`[GitHub Scraper] Network or rate limit on ${username}, reporting API unavailable:`, err);
   }
 
-  // Graceful fallback heuristics for sandbox or unauthenticated rate limits
+  // Strict Grounding - Do NOT manufacture fake repositories or follower metrics on API lookup failure
   return {
-    success: true,
+    success: false,
     username,
-    totalRepos: 24,
-    followers: 42,
-    bio: 'Distributed Systems & Full-Stack Engineer',
-    topLanguages: ['TypeScript', 'Python', 'Go', 'React', 'PostgreSQL'],
-    featuredRepos: [
-      {
-        repoName: `${username}-distributed-cache`,
-        stars: 34,
-        forks: 8,
-        primaryLanguage: 'Go',
-        description: 'High-throughput in-memory key-value cache with Raft consensus and sub-millisecond replication.',
-        architecturalHighlights: 'Implemented consistent hashing, write-ahead logging (WAL), and gRPC serialization.',
-      },
-      {
-        repoName: `${username}-ai-orchestrator`,
-        stars: 89,
-        forks: 14,
-        primaryLanguage: 'TypeScript',
-        description: 'Autonomous multi-agent execution framework with streaming tool calls and vector retrieval.',
-        architecturalHighlights: 'Architected with React 18, Node.js, and Redis task queues with retry policies.',
-      },
-    ],
-    source: 'fallback_heuristic',
+    totalRepos: 0,
+    followers: 0,
+    bio: 'Profile unavailable or rate-limited',
+    topLanguages: [],
+    featuredRepos: [],
+    source: 'api_unavailable',
   };
 }
 
@@ -340,7 +323,7 @@ export async function scrapeLeetCodeProfile(urlOrUsername: string): Promise<{
   success: boolean;
   username: string;
   metrics: LeetCodeMetrics;
-  source: 'live_graphql' | 'fallback_heuristic';
+  source: 'live_graphql' | 'fallback_heuristic' | 'api_unavailable';
 }> {
   const username = extractUsernameFromUrl(urlOrUsername, 'leetcode');
   if (!username) {
@@ -445,20 +428,20 @@ export async function scrapeLeetCodeProfile(urlOrUsername: string): Promise<{
     console.warn(`[LeetCode Scraper] Network check for ${username}:`, err);
   }
 
-  // Realistic fallback profile for sandbox/rate limit scenarios
+  // Strict Grounding - Do NOT manufacture fake solved counts on API failure
   return {
-    success: true,
+    success: false,
     username,
     metrics: {
-      totalSolved: 485,
-      easySolved: 160,
-      mediumSolved: 265,
-      hardSolved: 60,
-      estimatedRating: 1910,
-      topTopics: ['Dynamic Programming', 'Graph Algorithms', 'Monotonic Queue', 'Binary Search', 'Trees'],
-      globalRankingTopPercent: 'Top 3.8% (Knight Tier)',
+      totalSolved: 0,
+      easySolved: 0,
+      mediumSolved: 0,
+      hardSolved: 0,
+      estimatedRating: 0,
+      topTopics: [],
+      globalRankingTopPercent: 'Unlinked or Unavailable',
     },
-    source: 'fallback_heuristic',
+    source: 'api_unavailable',
   };
 }
 
@@ -471,7 +454,7 @@ export async function scrapeSubstackProfile(urlOrHandle: string): Promise<{
   publicationTopics: string[];
   notableArticles: string[];
   technicalDepthScore: number;
-  source: 'live_rss' | 'fallback_heuristic';
+  source: 'live_rss' | 'fallback_heuristic' | 'api_unavailable';
 }> {
   const handle = extractUsernameFromUrl(urlOrHandle, 'substack');
   if (!handle) {
@@ -531,16 +514,13 @@ export async function scrapeSubstackProfile(urlOrHandle: string): Promise<{
     console.warn(`[Substack Scraper] RSS check for ${handle}:`, err);
   }
 
+  // Strict Grounding - Do NOT manufacture fake articles on failure
   return {
-    success: true,
+    success: false,
     handle,
-    publicationTopics: ['Distributed Systems', 'System Design & Scalability', 'Full-Stack Performance'],
-    notableArticles: [
-      'Deconstructing Multi-Agent Orchestration & Streaming RAG',
-      'Scaling WebSocket Infrastructure to 100k Concurrent Connections',
-      'Understanding In-Memory Key-Value Stores from Scratch',
-    ],
-    technicalDepthScore: 92,
-    source: 'fallback_heuristic',
+    publicationTopics: [],
+    notableArticles: [],
+    technicalDepthScore: 0,
+    source: 'api_unavailable',
   };
 }

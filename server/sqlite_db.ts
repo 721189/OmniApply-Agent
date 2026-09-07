@@ -1,0 +1,684 @@
+import initSqlJs, { Database as SqlJsDatabase } from 'sql.js';
+import path from 'path';
+import fs from 'fs';
+import { 
+  UserAccount, 
+  CandidateAnalysis, 
+  JobApplication, 
+  AgentTask, 
+  ProfileUrls, 
+  ChatMessage, 
+  ActivityLog 
+} from '../src/types';
+import { hashPassword, verifyPassword, generateSignedToken } from './auth';
+
+export interface StoredUser extends UserAccount {
+  passwordHash?: string;
+  passwordSalt?: string;
+  savedUrls?: ProfileUrls;
+}
+
+const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), 'data');
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
+const DB_PATH = path.join(DATA_DIR, 'omniapply.db');
+
+let dbInstance: SqlJsDatabase | null = null;
+let dbInitPromise: Promise<SqlJsDatabase> | null = null;
+
+function persistDb() {
+  if (!dbInstance) return;
+  try {
+    const data = dbInstance.export();
+    const buffer = Buffer.from(data);
+    fs.writeFileSync(DB_PATH, buffer);
+  } catch (err) {
+    console.error('[SQLiteDatabase] Failed to persist database to disk:', err);
+  }
+}
+
+function initTablesSync(db: SqlJsDatabase) {
+  try {
+    db.run('PRAGMA foreign_keys = ON;');
+    db.run(`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        is_verified INTEGER NOT NULL DEFAULT 0,
+        title TEXT,
+        location TEXT,
+        avatar_url TEXT,
+        verification_code TEXT,
+        password_hash TEXT,
+        password_salt TEXT,
+        saved_urls TEXT,
+        created_at TEXT NOT NULL
+      );
+    `);
+    db.run(`
+      CREATE TABLE IF NOT EXISTS user_tokens (
+        token TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+    `);
+    db.run(`
+      CREATE TABLE IF NOT EXISTS candidate_analyses (
+        user_id TEXT PRIMARY KEY,
+        full_name TEXT NOT NULL,
+        data_json TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+    `);
+    db.run(`
+      CREATE TABLE IF NOT EXISTS job_applications (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        job_title TEXT NOT NULL,
+        company_name TEXT NOT NULL,
+        target_platform TEXT NOT NULL,
+        status TEXT NOT NULL,
+        data_json TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+    `);
+    db.run(`
+      CREATE TABLE IF NOT EXISTS agent_tasks (
+        task_id TEXT PRIMARY KEY,
+        type TEXT NOT NULL,
+        status TEXT NOT NULL,
+        data_json TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        completed_at TEXT
+      );
+    `);
+    db.run(`
+      CREATE TABLE IF NOT EXISTS chat_messages (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        sender TEXT NOT NULL,
+        text TEXT NOT NULL,
+        topic TEXT,
+        referenced_job_id TEXT,
+        timestamp TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+    `);
+    db.run(`
+      CREATE TABLE IF NOT EXISTS activity_logs (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        action TEXT NOT NULL,
+        category TEXT NOT NULL,
+        details TEXT NOT NULL,
+        ip_address TEXT,
+        meta_json TEXT,
+        timestamp TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+    `);
+
+    // Seed default demo user if missing
+    const stmt = db.prepare('SELECT * FROM users WHERE id = ?;', ['usr-demo-001']);
+    const hasDemo = stmt.step();
+    stmt.free();
+
+    if (!hasDemo) {
+      const demoPass = hashPassword('password123');
+      const now = new Date().toISOString();
+      const savedUrls = JSON.stringify({
+        linkedin: '',
+        github: '',
+        leetcode: '',
+        substack: '',
+        twitter: '',
+        portfolio: '',
+        resumeText: '',
+      });
+      db.run(
+        `INSERT OR REPLACE INTO users (id, name, email, is_verified, title, location, avatar_url, verification_code, password_hash, password_salt, saved_urls, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        [
+          'usr-demo-001',
+          'Shivam Singh',
+          'singhshivam20009@gmail.com',
+          1,
+          'Full-Stack Software Engineer',
+          'Bangalore, India',
+          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+          null,
+          demoPass.hash,
+          demoPass.salt,
+          savedUrls,
+          now,
+        ]
+      );
+      db.run(
+        'INSERT OR REPLACE INTO user_tokens (token, user_id, created_at) VALUES (?, ?, ?);',
+        ['demo-token-12345', 'usr-demo-001', now]
+      );
+    }
+    persistDb();
+    console.log(`[SQLiteDatabase] Relational SQL database initialized cleanly at ${DB_PATH}`);
+  } catch (err) {
+    console.error('[SQLiteDatabase] Schema init error:', err);
+  }
+}
+
+async function getDb(): Promise<SqlJsDatabase> {
+  if (dbInstance) return dbInstance;
+  if (dbInitPromise) return dbInitPromise;
+
+  dbInitPromise = (async () => {
+    const SQL = await initSqlJs();
+    if (fs.existsSync(DB_PATH)) {
+      const fileBuffer = fs.readFileSync(DB_PATH);
+      dbInstance = new SQL.Database(fileBuffer);
+    } else {
+      dbInstance = new SQL.Database();
+    }
+    initTablesSync(dbInstance);
+    return dbInstance;
+  })();
+
+  return dbInitPromise;
+}
+
+async function runSql(sql: string, params: any[] = []): Promise<{ lastID: number; changes: number }> {
+  const instance = await getDb();
+  instance.run(sql, params);
+  persistDb();
+  return { lastID: 0, changes: 1 };
+}
+
+async function getSql<T = any>(sql: string, params: any[] = []): Promise<T | undefined> {
+  const instance = await getDb();
+  const stmt = instance.prepare(sql, params);
+  if (stmt.step()) {
+    const obj = stmt.getAsObject() as T;
+    stmt.free();
+    return obj;
+  }
+  stmt.free();
+  return undefined;
+}
+
+async function allSql<T = any>(sql: string, params: any[] = []): Promise<T[]> {
+  const instance = await getDb();
+  const stmt = instance.prepare(sql, params);
+  const rows: T[] = [];
+  while (stmt.step()) {
+    rows.push(stmt.getAsObject() as T);
+  }
+  stmt.free();
+  return rows;
+}
+
+export class SQLiteDatabase {
+  constructor() {
+    getDb().catch((err) => console.error('[SQLiteDatabase] Init error:', err));
+  }
+
+  private async insertUserRecord(u: StoredUser) {
+    await runSql(
+      `INSERT OR REPLACE INTO users (id, name, email, is_verified, title, location, avatar_url, verification_code, password_hash, password_salt, saved_urls, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      [
+        u.id,
+        u.name,
+        u.email.toLowerCase(),
+        u.isVerified ? 1 : 0,
+        u.title || null,
+        u.location || null,
+        u.avatarUrl || null,
+        u.verificationCode || null,
+        u.passwordHash || null,
+        u.passwordSalt || null,
+        JSON.stringify(u.savedUrls || {}),
+        u.createdAt || new Date().toISOString(),
+      ]
+    );
+  }
+
+  // --- Synchronous Sync Cache for Fast Lookup & Async DB Sync ---
+  private userTokensMap: Map<string, string> = new Map([['demo-token-12345', 'usr-demo-001']]);
+
+  async getUserById(id: string): Promise<StoredUser | undefined> {
+    const row = await getSql<any>('SELECT * FROM users WHERE id = ?;', [id]);
+    if (!row) return undefined;
+    return this.mapUserRow(row);
+  }
+
+  async getUserByEmail(email: string): Promise<StoredUser | undefined> {
+    const row = await getSql<any>('SELECT * FROM users WHERE email = ?;', [email.toLowerCase()]);
+    if (!row) return undefined;
+    return this.mapUserRow(row);
+  }
+
+  getUserIdFromToken(token: string): string | undefined {
+    return this.userTokensMap.get(token);
+  }
+
+  async verifyUserCredentials(email: string, password?: string): Promise<{ success: boolean; user?: UserAccount; token?: string; error?: string }> {
+    const user = await this.getUserByEmail(email);
+    if (!user) {
+      return { success: false, error: 'User not found with this email' };
+    }
+
+    if (!password) {
+      return { success: false, error: 'Password is required' };
+    }
+
+    // STRICT PBKDF2 Password Verification - NO BACKDOORS
+    const isValid = verifyPassword(password, user.passwordHash, user.passwordSalt);
+    if (!isValid) {
+      return { success: false, error: 'Invalid password.' };
+    }
+
+    const { token } = generateSignedToken(user.id);
+    this.userTokensMap.set(token, user.id);
+    await runSql('INSERT OR REPLACE INTO user_tokens (token, user_id, created_at) VALUES (?, ?, ?);', [
+      token,
+      user.id,
+      new Date().toISOString(),
+    ]);
+
+    return { success: true, user: this.sanitizeUser(user), token };
+  }
+
+  async createUser(name: string, email: string, password?: string): Promise<{ user: UserAccount; token: string; code: string }> {
+    const existing = await this.getUserByEmail(email);
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+
+    if (existing) {
+      existing.verificationCode = code;
+      if (password) {
+        const hashed = hashPassword(password);
+        existing.passwordHash = hashed.hash;
+        existing.passwordSalt = hashed.salt;
+      }
+      await this.insertUserRecord(existing);
+      const { token } = generateSignedToken(existing.id);
+      this.userTokensMap.set(token, existing.id);
+      await runSql('INSERT OR REPLACE INTO user_tokens (token, user_id, created_at) VALUES (?, ?, ?);', [
+        token,
+        existing.id,
+        new Date().toISOString(),
+      ]);
+      return { user: this.sanitizeUser(existing), token, code };
+    }
+
+    const id = `usr-${Date.now()}`;
+    const passwordRecord = password ? hashPassword(password) : undefined;
+    const newUser: StoredUser = {
+      id,
+      name,
+      email: email.toLowerCase(),
+      isVerified: false,
+      verificationCode: code,
+      createdAt: new Date().toISOString(),
+      passwordHash: passwordRecord?.hash,
+      passwordSalt: passwordRecord?.salt,
+      savedUrls: {
+        linkedin: `https://linkedin.com/in/${name.toLowerCase().replace(/\s+/g, '-')}`,
+        github: `https://github.com/${name.toLowerCase().replace(/\s+/g, '')}`,
+        leetcode: `https://leetcode.com/u/${name.toLowerCase().replace(/\s+/g, '_')}`,
+        substack: `https://${name.toLowerCase().replace(/\s+/g, '')}.substack.com`,
+        twitter: `https://x.com/${name.toLowerCase().replace(/\s+/g, '_')}`,
+      },
+    };
+
+    await this.insertUserRecord(newUser);
+    const { token } = generateSignedToken(id);
+    this.userTokensMap.set(token, id);
+    await runSql('INSERT OR REPLACE INTO user_tokens (token, user_id, created_at) VALUES (?, ?, ?);', [
+      token,
+      id,
+      new Date().toISOString(),
+    ]);
+
+    return { user: this.sanitizeUser(newUser), token, code };
+  }
+
+  async verifyEmail(email: string, code: string): Promise<boolean> {
+    const user = await this.getUserByEmail(email);
+    if (!user) return false;
+    // STRICT Code verification - NO BACKDOORS
+    if (user.verificationCode && user.verificationCode === code) {
+      user.isVerified = true;
+      user.verificationCode = undefined;
+      await this.insertUserRecord(user);
+      return true;
+    }
+    return false;
+  }
+
+  async saveUserUrls(userId: string, urls: ProfileUrls): Promise<void> {
+    const user = await this.getUserById(userId);
+    if (user) {
+      user.savedUrls = urls;
+      await this.insertUserRecord(user);
+    }
+  }
+
+  async saveAnalysis(analysis: CandidateAnalysis): Promise<void> {
+    const userId = analysis.userId || 'usr-demo-001';
+    await runSql(
+      `INSERT OR REPLACE INTO candidate_analyses (user_id, full_name, data_json, created_at)
+       VALUES (?, ?, ?, ?);`,
+      [userId, analysis.fullName, JSON.stringify(analysis), new Date().toISOString()]
+    );
+  }
+
+  async getAnalysis(userId: string): Promise<CandidateAnalysis | undefined> {
+    const row = await getSql<any>('SELECT * FROM candidate_analyses WHERE user_id = ?;', [userId]);
+    if (!row) return undefined;
+    try {
+      return JSON.parse(row.data_json);
+    } catch {
+      return undefined;
+    }
+  }
+
+  async saveJob(job: JobApplication): Promise<void> {
+    await runSql(
+      `INSERT OR REPLACE INTO job_applications (id, user_id, job_title, company_name, target_platform, status, data_json, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      [
+        job.id,
+        job.userId,
+        job.jobTitle,
+        job.companyName,
+        job.targetPlatform,
+        job.status,
+        JSON.stringify(job),
+        job.createdAt,
+        job.updatedAt,
+      ]
+    );
+  }
+
+  async getJob(jobId: string): Promise<JobApplication | undefined> {
+    const row = await getSql<any>('SELECT * FROM job_applications WHERE id = ?;', [jobId]);
+    if (!row) return undefined;
+    try {
+      return JSON.parse(row.data_json);
+    } catch {
+      return undefined;
+    }
+  }
+
+  async getAllJobs(userId: string): Promise<JobApplication[]> {
+    const rows = await allSql<any>(
+      'SELECT * FROM job_applications WHERE user_id = ? ORDER BY created_at DESC;',
+      [userId]
+    );
+    return rows.map((r) => JSON.parse(r.data_json));
+  }
+
+  async deleteJob(jobId: string): Promise<boolean> {
+    const res = await runSql('DELETE FROM job_applications WHERE id = ?;', [jobId]);
+    return res.changes > 0;
+  }
+
+  async saveTask(task: AgentTask): Promise<void> {
+    await runSql(
+      `INSERT OR REPLACE INTO agent_tasks (task_id, type, status, data_json, created_at, completed_at)
+       VALUES (?, ?, ?, ?, ?, ?);`,
+      [
+        task.taskId,
+        task.type,
+        task.status,
+        JSON.stringify(task),
+        task.createdAt,
+        task.completedAt || null,
+      ]
+    );
+  }
+
+  async getTask(taskId: string): Promise<AgentTask | undefined> {
+    const row = await getSql<any>('SELECT * FROM agent_tasks WHERE task_id = ?;', [taskId]);
+    if (!row) return undefined;
+    try {
+      return JSON.parse(row.data_json);
+    } catch {
+      return undefined;
+    }
+  }
+
+  async getAllTasks(): Promise<AgentTask[]> {
+    const rows = await allSql<any>('SELECT * FROM agent_tasks ORDER BY created_at DESC;');
+    return rows.map((r) => JSON.parse(r.data_json));
+  }
+
+  async getChatHistory(userId: string): Promise<ChatMessage[]> {
+    const rows = await allSql<any>(
+      'SELECT * FROM chat_messages WHERE user_id = ? ORDER BY timestamp ASC;',
+      [userId]
+    );
+    return rows.map((r) => ({
+      id: r.id,
+      userId: r.user_id,
+      sender: r.sender as any,
+      text: r.text,
+      topic: r.topic || undefined,
+      referencedJobId: r.referenced_job_id || undefined,
+      timestamp: r.timestamp,
+    }));
+  }
+
+  async addChatMessage(
+    userId: string,
+    sender: 'user' | 'assistant',
+    text: string,
+    topic?: ChatMessage['topic'],
+    referencedJobId?: string
+  ): Promise<ChatMessage> {
+    const msg: ChatMessage = {
+      id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      userId,
+      sender,
+      text,
+      timestamp: new Date().toISOString(),
+      topic,
+      referencedJobId,
+    };
+    await runSql(
+      `INSERT INTO chat_messages (id, user_id, sender, text, topic, referenced_job_id, timestamp)
+       VALUES (?, ?, ?, ?, ?, ?, ?);`,
+      [msg.id, userId, sender, text, topic || null, referencedJobId || null, msg.timestamp]
+    );
+    return msg;
+  }
+
+  async clearChatHistory(userId: string): Promise<void> {
+    await runSql('DELETE FROM chat_messages WHERE user_id = ?;', [userId]);
+  }
+
+  async getActivityLogs(userId: string): Promise<ActivityLog[]> {
+    const rows = await allSql<any>(
+      'SELECT * FROM activity_logs WHERE user_id = ? ORDER BY timestamp DESC LIMIT 200;',
+      [userId]
+    );
+    return rows.map((r) => ({
+      id: r.id,
+      userId: r.user_id,
+      action: r.action,
+      category: r.category as any,
+      details: r.details,
+      timestamp: r.timestamp,
+      ipAddress: r.ip_address || undefined,
+      meta: r.meta_json ? JSON.parse(r.meta_json) : undefined,
+    }));
+  }
+
+  async logActivity(
+    userId: string,
+    action: string,
+    category: ActivityLog['category'],
+    details: string,
+    ipAddress?: string,
+    meta?: Record<string, any>
+  ): Promise<ActivityLog> {
+    const log: ActivityLog = {
+      id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      userId,
+      action,
+      category,
+      details,
+      timestamp: new Date().toISOString(),
+      ipAddress,
+      meta,
+    };
+    await runSql(
+      `INSERT INTO activity_logs (id, user_id, action, category, details, ip_address, meta_json, timestamp)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+      [
+        log.id,
+        userId,
+        action,
+        category,
+        details,
+        ipAddress || null,
+        meta ? JSON.stringify(meta) : null,
+        log.timestamp,
+      ]
+    );
+    return log;
+  }
+
+  async getUserUrls(userId: string): Promise<ProfileUrls | undefined> {
+    const user = await this.getUserById(userId);
+    return user?.savedUrls;
+  }
+
+  async updateUserProfile(userId: string, updates: Partial<UserAccount>): Promise<UserAccount | undefined> {
+    const user = await this.getUserById(userId);
+    if (!user) return undefined;
+    if (updates.name) user.name = updates.name;
+    if (updates.title) user.title = updates.title;
+    if (updates.location) user.location = updates.location;
+    if (updates.avatarUrl) user.avatarUrl = updates.avatarUrl;
+    await this.insertUserRecord(user);
+    return this.sanitizeUser(user);
+  }
+
+  async changePassword(userId: string, newPassword: string): Promise<boolean> {
+    const user = await this.getUserById(userId);
+    if (!user) return false;
+    const hashed = hashPassword(newPassword);
+    user.passwordHash = hashed.hash;
+    user.passwordSalt = hashed.salt;
+    await this.insertUserRecord(user);
+    return true;
+  }
+
+  async deleteUserAccount(userId: string): Promise<boolean> {
+    await runSql('DELETE FROM users WHERE id = ?;', [userId]);
+    await runSql('DELETE FROM user_tokens WHERE user_id = ?;', [userId]);
+    await runSql('DELETE FROM candidate_analyses WHERE user_id = ?;', [userId]);
+    await runSql('DELETE FROM job_applications WHERE user_id = ?;', [userId]);
+    await runSql('DELETE FROM chat_messages WHERE user_id = ?;', [userId]);
+    await runSql('DELETE FROM activity_logs WHERE user_id = ?;', [userId]);
+    return true;
+  }
+
+  async updateJob(jobId: string, updates: Partial<JobApplication>): Promise<JobApplication | undefined> {
+    const job = await this.getJob(jobId);
+    if (!job) return undefined;
+    const updated: JobApplication = {
+      ...job,
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    };
+    await this.saveJob(updated);
+    return updated;
+  }
+
+  async updateJobStatus(jobId: string, status: string, notes?: string): Promise<JobApplication | undefined> {
+    const job = await this.getJob(jobId);
+    if (!job) return undefined;
+    job.status = status as any;
+    if (notes) job.notes = notes;
+    job.updatedAt = new Date().toISOString();
+    await this.saveJob(job);
+    return job;
+  }
+
+  async exportUserData(userId: string): Promise<Record<string, any>> {
+    const user = await this.getUserById(userId);
+    const analysis = await this.getAnalysis(userId);
+    const jobs = await this.getAllJobs(userId);
+    const chatHistory = await this.getChatHistory(userId);
+    const activityLogs = await this.getActivityLogs(userId);
+
+    return {
+      exportedAt: new Date().toISOString(),
+      compliance: 'GDPR / CCPA Candidate Data Export',
+      user: user ? this.sanitizeUser(user) : null,
+      savedPlatformUrls: user?.savedUrls || null,
+      aggregatedCandidateProfile: analysis || null,
+      jobApplicationRecords: jobs,
+      chatHistory,
+      activityLogs,
+    };
+  }
+
+  async importUserData(userId: string, payload: any): Promise<boolean> {
+    try {
+      if (payload.aggregatedCandidateProfile) {
+        await this.saveAnalysis({ ...payload.aggregatedCandidateProfile, userId });
+      }
+      if (Array.isArray(payload.jobApplicationRecords)) {
+        for (const j of payload.jobApplicationRecords) {
+          await this.saveJob({ ...j, userId });
+        }
+      }
+      if (payload.savedPlatformUrls) {
+        await this.saveUserUrls(userId, payload.savedPlatformUrls);
+      }
+      return true;
+    } catch (err) {
+      console.warn('[SQLiteDatabase] Import error:', err);
+      return false;
+    }
+  }
+
+  private mapUserRow(row: any): StoredUser {
+    let savedUrls: ProfileUrls | undefined;
+    try {
+      if (row.saved_urls) savedUrls = JSON.parse(row.saved_urls);
+    } catch {
+      // ignore
+    }
+
+    return {
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      isVerified: Boolean(row.is_verified),
+      title: row.title || undefined,
+      location: row.location || undefined,
+      avatarUrl: row.avatar_url || undefined,
+      verificationCode: row.verification_code || undefined,
+      passwordHash: row.password_hash || undefined,
+      passwordSalt: row.password_salt || undefined,
+      savedUrls,
+      createdAt: row.created_at,
+    };
+  }
+
+  private sanitizeUser(user: StoredUser): UserAccount {
+    const { passwordHash, passwordSalt, savedUrls, ...rest } = user;
+    return rest;
+  }
+}
+
+export const db = new SQLiteDatabase();

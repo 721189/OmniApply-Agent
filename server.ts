@@ -7,6 +7,7 @@ import { generateApplicationPackage } from './server/appGenerator';
 import { scrapeGitHubProfile, scrapeLeetCodeProfile, scrapeSubstackProfile } from './server/scrapers';
 import { generateTailoredResumePackage, buildLatexResumeDocument } from './server/resumeGenerator';
 import { generateFollowUpSequence, generateIcsCalendarFile } from './server/followupGenerator';
+import { generateContentWithFallback } from './server/gemini';
 import { ProfileUrls, PlatformType, JobApplication, AgentTask, AgentTaskLog } from './src/types';
 
 async function startServer() {
@@ -47,15 +48,17 @@ async function startServer() {
     next();
   });
 
-  // Helper to extract auth user
-  const getUserFromReq = (req: Request) => {
+  // Helper to extract auth user (Strict Token Validation - No implicit fallbacks)
+  const getUserFromReq = async (req: Request) => {
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
       const userId = db.getUserIdFromToken(token);
-      if (userId) return db.getUserById(userId);
+      if (userId) {
+        return await db.getUserById(userId);
+      }
     }
-    return db.getUserById('usr-demo-001');
+    return null;
   };
 
   // --- 1. Health & Status ---
@@ -64,16 +67,16 @@ async function startServer() {
   });
 
   // --- 2. Auth & Email Verification Routes ---
-  app.post('/api/auth/login', (req: Request, res: Response) => {
+  app.post('/api/auth/login', async (req: Request, res: Response) => {
     const { email, password } = req.body;
     if (!email) {
       return res.status(400).json({ error: 'Email is required' });
     }
-    const result = db.verifyUserCredentials(email, password);
+    const result = await db.verifyUserCredentials(email, password);
     if (!result.success) {
       // If user doesn't exist, create account
       if (result.error === 'User not found with this email') {
-        const created = db.createUser(email.split('@')[0], email, password);
+        const created = await db.createUser(email.split('@')[0], email, password);
         return res.json({
           user: created.user,
           token: created.token,
@@ -90,12 +93,12 @@ async function startServer() {
     });
   });
 
-  app.post('/api/auth/register', (req: Request, res: Response) => {
+  app.post('/api/auth/register', async (req: Request, res: Response) => {
     const { name, email, password } = req.body;
     if (!email) {
       return res.status(400).json({ error: 'Email is required' });
     }
-    const result = db.createUser(name || email.split('@')[0], email, password);
+    const result = await db.createUser(name || email.split('@')[0], email, password);
     res.json({
       user: result.user,
       token: result.token,
@@ -104,12 +107,12 @@ async function startServer() {
     });
   });
 
-  app.post('/api/auth/resend-code', (req: Request, res: Response) => {
+  app.post('/api/auth/resend-code', async (req: Request, res: Response) => {
     const { email } = req.body;
     if (!email) {
       return res.status(400).json({ error: 'Email is required' });
     }
-    const user = db.getUserByEmail(email);
+    const user = await db.getUserByEmail(email);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
@@ -118,71 +121,71 @@ async function startServer() {
     res.json({ success: true, verificationCode: code, message: `New verification code sent to ${email}` });
   });
 
-  app.post('/api/auth/verify-email', (req: Request, res: Response) => {
+  app.post('/api/auth/verify-email', async (req: Request, res: Response) => {
     const { email, code } = req.body;
     if (!email || !code) {
       return res.status(400).json({ error: 'Email and verification code are required' });
     }
-    const success = db.verifyEmail(email, code);
+    const success = await db.verifyEmail(email, code);
     if (success) {
-      const user = db.getUserByEmail(email);
+      const user = await db.getUserByEmail(email);
       res.json({ success: true, user, message: 'Email verified successfully!' });
     } else {
-      res.status(400).json({ error: 'Invalid verification code. Try "123456" for demo testing.' });
+      res.status(400).json({ error: 'Invalid verification code.' });
     }
   });
 
-  app.get('/api/auth/me', (req: Request, res: Response) => {
-    const user = getUserFromReq(req);
-    res.json({ user: user || db.getUserById('usr-demo-001') });
+  app.get('/api/auth/me', async (req: Request, res: Response) => {
+    const user = await getUserFromReq(req);
+    res.json({ user: user || null });
   });
 
-  app.patch('/api/auth/profile', (req: Request, res: Response) => {
-    const user = getUserFromReq(req);
-    if (!user) return res.status(401).json({ error: 'Unauthorized' });
-    const updated = db.updateUserProfile(user.id, req.body);
+  app.patch('/api/auth/profile', async (req: Request, res: Response) => {
+    const user = await getUserFromReq(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized. Bearer token required.' });
+    const updated = await db.updateUserProfile(user.id, req.body);
     res.json({ success: true, user: updated });
   });
 
-  app.post('/api/auth/change-password', (req: Request, res: Response) => {
-    const user = getUserFromReq(req);
-    if (!user) return res.status(401).json({ error: 'Unauthorized' });
+  app.post('/api/auth/change-password', async (req: Request, res: Response) => {
+    const user = await getUserFromReq(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized. Bearer token required.' });
     const { newPassword } = req.body;
     if (!newPassword || newPassword.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
-    db.changePassword(user.id, newPassword);
+    await db.changePassword(user.id, newPassword);
     res.json({ success: true, message: 'Password updated successfully' });
   });
 
-  app.get('/api/auth/export-data', (req: Request, res: Response) => {
-    const user = getUserFromReq(req);
-    const userId = user?.id || 'usr-demo-001';
-    const data = db.exportUserData(userId);
+  app.get('/api/auth/export-data', async (req: Request, res: Response) => {
+    const user = await getUserFromReq(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized. Bearer token required.' });
+    const data = await db.exportUserData(user.id);
     res.json({ success: true, data });
   });
 
-  app.delete('/api/auth/account', (req: Request, res: Response) => {
-    const user = getUserFromReq(req);
-    const userId = user?.id || 'usr-demo-001';
-    db.deleteUserAccount(userId);
+  app.delete('/api/auth/account', async (req: Request, res: Response) => {
+    const user = await getUserFromReq(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized. Bearer token required.' });
+    await db.deleteUserAccount(user.id);
     res.json({ success: true, message: 'Account and associated records purged successfully' });
   });
 
   // --- Saved Platform URLs ---
-  app.get('/api/profile-urls', (req: Request, res: Response) => {
-    const user = getUserFromReq(req);
-    const userId = user?.id || 'usr-demo-001';
-    const urls = db.getUserUrls(userId);
+  app.get('/api/profile-urls', async (req: Request, res: Response) => {
+    const user = await getUserFromReq(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized. Bearer token required.' });
+    const urls = await db.getUserUrls(user.id);
     res.json({ urls: urls || null });
   });
 
-  app.post('/api/profile-urls', (req: Request, res: Response) => {
-    const user = getUserFromReq(req);
-    const userId = user?.id || 'usr-demo-001';
+  app.post('/api/profile-urls', async (req: Request, res: Response) => {
+    const user = await getUserFromReq(req);
+    if (!user) return res.status(401).json({ error: 'Unauthorized. Bearer token required.' });
     const { urls } = req.body as { urls: ProfileUrls };
     if (urls) {
-      db.saveUserUrls(userId, urls);
+      await db.saveUserUrls(user.id, urls);
     }
     res.json({ success: true, urls });
   });
@@ -191,7 +194,7 @@ async function startServer() {
   app.post('/api/analyze-profiles', async (req: Request, res: Response) => {
     try {
       const { urls, userName } = req.body as { urls: ProfileUrls; userName?: string };
-      const user = getUserFromReq(req);
+      const user = await getUserFromReq(req);
       const name = userName || user?.name || 'Engineer';
 
       const taskId = `task-analysis-${Date.now()}`;
@@ -214,7 +217,7 @@ async function startServer() {
           },
         ],
       };
-      db.saveTask(task);
+      await db.saveTask(task);
 
       // Execute analysis with real-time task logging
       const analysis = await analyzeCandidateProfiles(
@@ -226,23 +229,23 @@ async function startServer() {
           twitter: 'https://x.com/alexrivera_codes',
         },
         name,
-        (progress, stage, log) => {
+        async (progress, stage, log) => {
           task.progress = progress;
           task.currentStage = stage;
           task.logs.push(log);
-          db.saveTask(task);
+          await db.saveTask(task);
         }
       );
 
       analysis.userId = user?.id || 'usr-demo-001';
-      db.saveAnalysis(analysis);
-      db.logActivity(analysis.userId, 'Generated Candidate Analysis', 'profile', `Analyzed profiles for ${analysis.fullName}`);
+      await db.saveAnalysis(analysis);
+      await db.logActivity(analysis.userId, 'Generated Candidate Analysis', 'profile', `Analyzed profiles for ${analysis.fullName}`);
 
       task.status = 'completed';
       task.progress = 100;
       task.completedAt = new Date().toISOString();
       task.result = analysis;
-      db.saveTask(task);
+      await db.saveTask(task);
 
       res.json({ success: true, taskId, analysis });
     } catch (err: any) {
@@ -251,10 +254,10 @@ async function startServer() {
     }
   });
 
-  app.get('/api/candidate-analysis', (req: Request, res: Response) => {
-    const user = getUserFromReq(req);
+  app.get('/api/candidate-analysis', async (req: Request, res: Response) => {
+    const user = await getUserFromReq(req);
     const userId = user?.id || 'usr-demo-001';
-    const analysis = db.getAnalysis(userId);
+    const analysis = await db.getAnalysis(userId);
     res.json({ analysis: analysis || null });
   });
 
@@ -285,13 +288,13 @@ async function startServer() {
         return res.status(400).json({ error: 'Job title and Company name are required' });
       }
 
-      const user = getUserFromReq(req);
+      const user = await getUserFromReq(req);
       const userId = user?.id || 'usr-demo-001';
 
       // Fallback candidate if none passed
       let candidate = candidateAnalysis;
       if (!candidate) {
-        candidate = db.getAnalysis(userId);
+        candidate = await db.getAnalysis(userId);
       }
       if (!candidate) {
         // Generate quick analysis
@@ -305,7 +308,7 @@ async function startServer() {
           },
           user?.name || 'Software Engineer'
         );
-        db.saveAnalysis(candidate);
+        await db.saveAnalysis(candidate);
       }
 
       const taskId = `task-appgen-${Date.now()}`;
@@ -328,7 +331,7 @@ async function startServer() {
           },
         ],
       };
-      db.saveTask(task);
+      await db.saveTask(task);
 
       const applicationPackage = await generateApplicationPackage(
         candidate,
@@ -338,11 +341,11 @@ async function startServer() {
         jobDescription || '',
         salaryExpectation,
         noticePeriod,
-        (progress, stage, log) => {
+        async (progress, stage, log) => {
           task.progress = progress;
           task.currentStage = stage;
           task.logs.push(log);
-          db.saveTask(task);
+          await db.saveTask(task);
         }
       );
 
@@ -350,7 +353,7 @@ async function startServer() {
       task.progress = 100;
       task.completedAt = new Date().toISOString();
       task.result = applicationPackage;
-      db.saveTask(task);
+      await db.saveTask(task);
 
       // If requested or auto-saved
       const jobId = `job-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
@@ -370,7 +373,7 @@ async function startServer() {
       };
 
       if (saveImmediately !== false) {
-        db.saveJob(jobApplication);
+        await db.saveJob(jobApplication);
       }
 
       res.json({
@@ -386,15 +389,15 @@ async function startServer() {
   });
 
   // --- 5. Job Applications History & Tracker Routes ---
-  app.get('/api/jobs', (req: Request, res: Response) => {
-    const user = getUserFromReq(req);
+  app.get('/api/jobs', async (req: Request, res: Response) => {
+    const user = await getUserFromReq(req);
     const userId = user?.id || 'usr-demo-001';
-    const jobs = db.getAllJobs(userId);
+    const jobs = await db.getAllJobs(userId);
     res.json({ jobs });
   });
 
-  app.post('/api/jobs', (req: Request, res: Response) => {
-    const user = getUserFromReq(req);
+  app.post('/api/jobs', async (req: Request, res: Response) => {
+    const user = await getUserFromReq(req);
     const userId = user?.id || 'usr-demo-001';
     const jobData = req.body as Partial<JobApplication>;
 
@@ -420,24 +423,24 @@ async function startServer() {
       appliedDate: jobData.appliedDate,
     };
 
-    db.saveJob(job);
+    await db.saveJob(job);
     res.json({ success: true, job });
   });
 
-  app.patch('/api/jobs/:id', (req: Request, res: Response) => {
+  app.patch('/api/jobs/:id', async (req: Request, res: Response) => {
     const { id } = req.params;
     const updates = req.body;
-    const updated = db.updateJob(id, updates);
+    const updated = await db.updateJob(id, updates);
     if (!updated) {
       return res.status(404).json({ error: 'Job not found' });
     }
     res.json({ success: true, job: updated });
   });
 
-  app.patch('/api/jobs/:id/status', (req: Request, res: Response) => {
+  app.patch('/api/jobs/:id/status', async (req: Request, res: Response) => {
     const { id } = req.params;
     const { status, notes } = req.body;
-    const updated = db.updateJobStatus(id, status, notes);
+    const updated = await db.updateJobStatus(id, status, notes);
     if (!updated) {
       return res.status(404).json({ error: 'Job not found' });
     }
@@ -535,13 +538,13 @@ Guidelines:
   });
 
   // --- 7. ATS LaTeX Resume & PDF Routes ---
-  app.post('/api/resume/generate', (req: Request, res: Response) => {
+  app.post('/api/resume/generate', async (req: Request, res: Response) => {
     try {
-      const user = getUserFromReq(req);
+      const user = await getUserFromReq(req);
       const userId = user?.id || 'usr-demo-001';
       const { jobTitle, companyName, jobDescription, customData } = req.body;
 
-      let candidate = db.getAnalysis(userId);
+      let candidate = await db.getAnalysis(userId);
       if (!candidate) {
         // Fallback default
         candidate = {
@@ -593,13 +596,13 @@ Guidelines:
   });
 
   // --- 8. Recruiter Follow-up Cadence & ICS Routes ---
-  app.post('/api/followup/generate', (req: Request, res: Response) => {
+  app.post('/api/followup/generate', async (req: Request, res: Response) => {
     try {
-      const user = getUserFromReq(req);
+      const user = await getUserFromReq(req);
       const userId = user?.id || 'usr-demo-001';
       const { jobTitle, companyName, targetPlatform } = req.body;
 
-      const candidate = db.getAnalysis(userId) || {
+      const candidate = (await db.getAnalysis(userId)) || {
         id: 'cand-default',
         fullName: user?.name || 'Shivam Singh',
         tagline: 'Software Engineer',
@@ -626,14 +629,14 @@ Guidelines:
     }
   });
 
-  app.get('/api/jobs/:id/ics', (req: Request, res: Response) => {
-    const job = db.getJob(req.params.id);
+  app.get('/api/jobs/:id/ics', async (req: Request, res: Response) => {
+    const job = await db.getJob(req.params.id);
     if (!job) {
       return res.status(404).json({ error: 'Job not found' });
     }
 
-    const user = getUserFromReq(req);
-    const candidate = db.getAnalysis(job.userId) || {
+    const user = await getUserFromReq(req);
+    const candidate = (await db.getAnalysis(job.userId)) || {
       id: 'cand-default',
       fullName: user?.name || 'Candidate',
       tagline: 'Software Engineer',
@@ -662,36 +665,36 @@ Guidelines:
   });
 
   // --- 9. Salary Negotiation & Offer Evaluation Routes ---
-  app.patch('/api/jobs/:id/offer', (req: Request, res: Response) => {
+  app.patch('/api/jobs/:id/offer', async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
       const { offerDetails } = req.body;
-      const job = db.getJob(id);
+      const job = await db.getJob(id);
       if (!job) {
         return res.status(404).json({ error: 'Job not found' });
       }
 
-      const updated = db.updateJob(id, { offerDetails });
+      const updated = await db.updateJob(id, { offerDetails });
       res.json({ success: true, job: updated });
     } catch (err: any) {
       res.status(500).json({ error: err.message || 'Failed to update offer details' });
     }
   });
 
-  app.delete('/api/jobs/:id', (req: Request, res: Response) => {
+  app.delete('/api/jobs/:id', async (req: Request, res: Response) => {
     const { id } = req.params;
-    const deleted = db.deleteJob(id);
+    const deleted = await db.deleteJob(id);
     res.json({ success: deleted });
   });
 
   // --- 6. Task Pipeline & Celery / Redis Telemetry Routes ---
-  app.get('/api/tasks', (req: Request, res: Response) => {
-    const tasks = db.getAllTasks();
+  app.get('/api/tasks', async (req: Request, res: Response) => {
+    const tasks = await db.getAllTasks();
     res.json({ tasks });
   });
 
-  app.get('/api/tasks/:id', (req: Request, res: Response) => {
-    const task = db.getTask(req.params.id);
+  app.get('/api/tasks/:id', async (req: Request, res: Response) => {
+    const task = await db.getTask(req.params.id);
     if (!task) {
       return res.status(404).json({ error: 'Task not found' });
     }
@@ -699,25 +702,25 @@ Guidelines:
   });
 
   // --- 7. User Data Export & Import (GDPR / Encrypted Backup) ---
-  app.get('/api/user/export', (req: Request, res: Response) => {
-    const user = getUserFromReq(req);
+  app.get('/api/user/export', async (req: Request, res: Response) => {
+    const user = await getUserFromReq(req);
     if (!user) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return res.status(401).json({ error: 'Unauthorized. Bearer token required.' });
     }
-    const exportData = db.exportUserData(user.id);
+    const exportData = await db.exportUserData(user.id);
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', `attachment; filename="omniapply_backup_${user.id}.json"`);
     res.json(exportData);
   });
 
-  app.post('/api/user/import', (req: Request, res: Response) => {
-    const user = getUserFromReq(req);
+  app.post('/api/user/import', async (req: Request, res: Response) => {
+    const user = await getUserFromReq(req);
     if (!user) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return res.status(401).json({ error: 'Unauthorized. Bearer token required.' });
     }
-    const success = db.importUserData(user.id, req.body);
+    const success = await db.importUserData(user.id, req.body);
     if (success) {
-      db.logActivity(user.id, 'Restored Data Backup', 'security', 'Restored JSON backup state');
+      await db.logActivity(user.id, 'Restored Data Backup', 'security', 'Restored JSON backup state');
       res.json({ success: true, message: 'Data backup restored successfully!' });
     } else {
       res.status(400).json({ error: 'Failed to restore data backup' });
@@ -725,15 +728,15 @@ Guidelines:
   });
 
   // --- 8. Persistent AI Copilot Conversation Chat & Audit Logs ---
-  app.get('/api/chat/history', (req: Request, res: Response) => {
-    const user = getUserFromReq(req);
+  app.get('/api/chat/history', async (req: Request, res: Response) => {
+    const user = await getUserFromReq(req);
     const userId = user ? user.id : 'usr-demo-001';
-    const history = db.getChatHistory(userId);
+    const history = await db.getChatHistory(userId);
     res.json({ history });
   });
 
   app.post('/api/chat/message', async (req: Request, res: Response) => {
-    const user = getUserFromReq(req);
+    const user = await getUserFromReq(req);
     const userId = user ? user.id : 'usr-demo-001';
     const { text, topic, referencedJobId } = req.body;
 
@@ -742,20 +745,20 @@ Guidelines:
     }
 
     // Save user message to persistent DB
-    const userMsg = db.addChatMessage(userId, 'user', text, topic, referencedJobId);
-    db.logActivity(userId, 'AI Chat Message Sent', 'chat', `Topic: ${topic || 'general'}, Query: "${text.slice(0, 60)}..."`);
+    const userMsg = await db.addChatMessage(userId, 'user', text, topic, referencedJobId);
+    await db.logActivity(userId, 'AI Chat Message Sent', 'chat', `Topic: ${topic || 'general'}, Query: "${text.slice(0, 60)}..."`);
 
     // Prepare context from user analysis & referenced job
-    const candidateAnalysis = db.getAnalysis(userId);
+    const candidateAnalysis = await db.getAnalysis(userId);
     let jobContext = '';
     if (referencedJobId) {
-      const job = db.getJob(referencedJobId);
+      const job = await db.getJob(referencedJobId);
       if (job) {
         jobContext = `REFERENCED JOB TARGET: ${job.jobTitle} at ${job.companyName}\nJOB DESCRIPTION: ${job.jobDescription.slice(0, 500)}`;
       }
     }
 
-    const pastHistory = db.getChatHistory(userId).slice(-8); // last 8 turns
+    const pastHistory = (await db.getChatHistory(userId)).slice(-8); // last 8 turns
     const historyFormatted = pastHistory
       .map((m) => `${m.sender.toUpperCase()}: ${m.text}`)
       .join('\n');
@@ -780,27 +783,27 @@ Provide a concise, high-value, tactical, actionable answer for the candidate. Be
       });
       const replyText = geminiResponse.text || 'I am ready to help you navigate your job search and optimize your application strategy.';
       
-      const assistantMsg = db.addChatMessage(userId, 'assistant', replyText, topic, referencedJobId);
+      const assistantMsg = await db.addChatMessage(userId, 'assistant', replyText, topic, referencedJobId);
       res.json({ userMessage: userMsg, assistantMessage: assistantMsg });
     } catch (err: any) {
       const fallbackReply = `I understand you are asking about "${text.slice(0, 50)}...". I recommend highlighting your verified portfolio projects, aligning your technical stack with the job description keywords, and emphasizing measurable achievements in your outreach.`;
-      const assistantMsg = db.addChatMessage(userId, 'assistant', fallbackReply, topic, referencedJobId);
+      const assistantMsg = await db.addChatMessage(userId, 'assistant', fallbackReply, topic, referencedJobId);
       res.json({ userMessage: userMsg, assistantMessage: assistantMsg });
     }
   });
 
-  app.delete('/api/chat/history', (req: Request, res: Response) => {
-    const user = getUserFromReq(req);
+  app.delete('/api/chat/history', async (req: Request, res: Response) => {
+    const user = await getUserFromReq(req);
     const userId = user ? user.id : 'usr-demo-001';
-    db.clearChatHistory(userId);
-    db.logActivity(userId, 'Cleared Chat History', 'chat', 'Candidate wiped AI conversation history');
+    await db.clearChatHistory(userId);
+    await db.logActivity(userId, 'Cleared Chat History', 'chat', 'Candidate wiped AI conversation history');
     res.json({ success: true, message: 'Chat history cleared' });
   });
 
-  app.get('/api/activity/logs', (req: Request, res: Response) => {
-    const user = getUserFromReq(req);
+  app.get('/api/activity/logs', async (req: Request, res: Response) => {
+    const user = await getUserFromReq(req);
     const userId = user ? user.id : 'usr-demo-001';
-    const logs = db.getActivityLogs(userId);
+    const logs = await db.getActivityLogs(userId);
     res.json({ logs });
   });
 

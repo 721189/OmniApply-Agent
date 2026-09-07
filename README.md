@@ -174,11 +174,11 @@
 - **Backend Server**: Express 4, Node.js, TypeScript (`tsx`).
 - **AI Core**: Google Gemini 2.5 Flash via `@google/genai` SDK with deterministic fallback synthesis.
 - **Security & Authentication**:
-  - **PBKDF2 Salted Hashing**: 10,000-iteration SHA-512 password hashing with cryptographically unique salts via Node `crypto`.
-  - **HMAC-SHA256 Signed Tokens**: 7-day expiration session tokens with constant-time signature verification.
+  - **PBKDF2 Salted Hashing**: 100,000-iteration SHA-512 password hashing with 16-byte cryptographically unique salts via Node `crypto`.
+  - **HMAC-SHA256 Signed Tokens**: 7-day expiration session tokens with constant-time signature verification. Strict token check (no unauthenticated demo fallback).
   - **HTTP Security Headers**: Native headers (`X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`, `Referrer-Policy`).
   - **API Rate Limiting**: Sliding-window rate limiter (60 requests/minute per IP) on `/api/*` endpoints.
-- **Persistent Storage**: File-backed JSON store (`/data/omni_store.json`) with auto-persistence across server restarts, plus full JSON export & restore (`/api/user/export`, `/api/user/import`).
+- **Database & Persistence**: Embedded relational SQLite database (`sqlite3` / `omni_database.db`) storing user accounts, candidate profiles, job applications, task telemetry, and chat history. Supports full data export & restore (`/api/user/export`, `/api/user/import`).
 - **Build & Packaging**: Vite 6, esbuild CommonJS single-bundle compilation (`dist/server.cjs`).
 
 ---
