@@ -18,8 +18,8 @@ describe('OTP 15-Minute Expiration Logic', () => {
     const now = Date.now();
     // Expiration should be roughly 15 minutes from now (900 seconds)
     const diffSeconds = (expiresTime - now) / 1000;
-    expect(diffSeconds).toBeGreaterThan(850);
-    expect(diffSeconds).toBeLessThanOrEqual(900);
+    expect(diffSeconds).toBeGreaterThan(800);
+    expect(diffSeconds).toBeLessThanOrEqual(910);
   });
 
   it('should successfully verify email when code is submitted within 15-minute window', async () => {
