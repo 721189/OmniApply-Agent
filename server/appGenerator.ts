@@ -79,14 +79,14 @@ CRITICAL ANTI-FABRICATION AND GROUNDING RULES:
 
 Return a strictly valid JSON object with the following schema:
 {
-  "coverLetter": "Comprehensive, compelling 3-4 paragraph markdown cover letter customized for ${companyName} mentioning specific tech stack alignment, concrete impact from candidate projects, and why this candidate is in the top 1% for ${jobTitle}.",
+  "coverLetter": "Comprehensive, compelling 3-4 paragraph markdown cover letter customized for ${companyName} mentioning specific tech stack alignment, concrete impact from candidate projects, and why this candidate's verified skills align with the role.",
   "elevatorPitch": "Punchy 2-sentence pitch for recruiter direct message / quick scan.",
   "platformSpecific": {
     "wellfound": {
-      "founderPitchNote": "Direct, conversational, high-ownership 400-500 character note to the founder on Wellfound explaining immediate product impact and startup velocity.",
+      "founderPitchNote": "Direct, conversational, high-ownership 400-500 character note to the founder on Wellfound explaining immediate product impact based on verified skills.",
       "whyThisStartup": "Detailed 2-paragraph reasoning on why ${companyName}'s product, business model, and engineering challenges excite the candidate.",
       "equityVsSalaryPreference": "Open to balanced mix of competitive base and high equity upside in high-conviction startup mission.",
-      "proudestAchievementInStartupEnvironment": "Detailed story of shipping a critical 0-to-1 feature or scaling an architecture under tight constraints.",
+      "proudestAchievementInStartupEnvironment": "Detailed story of shipping a feature or scaling an architecture, strictly grounded in the provided dossier.",
       "expectedSalaryRange": "${salaryExpectation || '$130k - $160k or market competitive'}"
     },
     "linkedin": {
@@ -94,22 +94,22 @@ Return a strictly valid JSON object with the following schema:
       "recruiterInMailBody": "Polite, high-impact recruiter outreach note highlighting 3 exact bullet points matching their JD.",
       "connectionRequestNote": "300 character max personalized LinkedIn connection invite to the hiring manager.",
       "easyApplyQnA": [
-        { "question": "How many years of work experience do you have with the primary tech stack?", "answer": "4+ years of production experience building scalable applications." },
-        { "question": "Are you comfortable working in a hybrid/remote setup?", "answer": "Yes, fully comfortable and experienced in remote asynchronous engineering workflows." },
-        { "question": "What is your notice period / start date?", "answer": "${noticePeriod || 'Available within 2 weeks or immediately.'}" }
+        { "question": "How many years of work experience do you have with the primary tech stack?", "answer": "Relevant experience based strictly on the candidate dossier." },
+        { "question": "Are you legally authorized to work in the role location?", "answer": "State work authorization only if explicitly mentioned in the dossier, otherwise state 'Open to discussing work authorization and visa requirements'." },
+        { "question": "What is your notice period / start date?", "answer": "${noticePeriod || 'Available to discuss start dates and notice periods.'}" }
       ]
     },
     "internshala": {
       "whyShouldYouBeHired": "Compelling answer to Internshala's classic prompt 'Why should you be hired for this role?' detailing hands-on project experience, fast learning curve, and dedication to ${companyName}.",
-      "availabilityConfirmation": "Yes, I am available to join immediately for the full duration of 6 months (full-time / part-time as required).",
-      "relevantProjectExperience": "Detailed summary of candidate's top project demonstrating 100% relevant skills to this internship/role.",
+      "availabilityConfirmation": "Open to discussing start date and availability for the required duration.",
+      "relevantProjectExperience": "Detailed summary of candidate's top project demonstrating relevant skills to this internship/role.",
       "assignmentSubmissionCover": "Detailed note to recruiter explaining candidate's approach to technical assignments and code quality standards.",
       "workPreference": "Full-Time In-Office / Remote as per company policy"
     },
     "customAts": {
       "whyCompany": "Deeply researched paragraph explaining why ${companyName} stands out among industry competitors.",
-      "biggestTechnicalChallenge": "Detailed STAR method breakdown of solving an intricate concurrency, latency, or architecture bottleneck.",
-      "leadershipOrCollaborationExample": "Example of aligning team members, code reviews, and delivering on schedule."
+      "biggestTechnicalChallenge": "STAR method breakdown of a technical challenge strictly based on a verified project in the dossier.",
+      "leadershipOrCollaborationExample": "Example of collaboration or project delivery strictly based on provided dossier evidence (or omit if none exists)."
     }
   },
   "screeningQuestions": [
@@ -228,14 +228,14 @@ ${candidate.tagline}`,
           recruiterInMailBody: `Hi Hiring Team at ${companyName},\n\nI recently came across the ${jobTitle} opening and was immediately compelled to reach out. Given ${companyName}'s focus on engineering excellence, my background aligns closely:\n\n• Full-Stack Production Readiness: Deep hands-on experience in modern web architecture.\n• Algorithmic & Problem Solving Rigor: Strong foundation in data structures and optimized solutions.\n• Verifiable Code: Active open-source repositories and clean system designs.\n\nI would welcome a brief conversation to explore how I can add immediate value to your engineering organization.\n\nBest,\n${candidate.fullName}`,
           connectionRequestNote: `Hi! I saw the ${jobTitle} role at ${companyName} and would love to connect. I specialize in full-stack systems and clean architectural patterns. Excited about what you're building!`,
           easyApplyQnA: [
-            { question: 'How many years of experience do you have with the primary tech stack?', answer: 'Strong production experience building full-stack systems.' },
-            { question: 'Are you legally authorized to work in the role location?', answer: 'Yes, fully authorized with valid work credentials.' },
-            { question: 'What is your notice period or earliest start date?', answer: noticePeriod || 'Immediately available / 2 weeks notice.' },
+            { question: 'How many years of experience do you have with the primary tech stack?', answer: 'I have hands-on experience building full-stack applications as evidenced by my GitHub portfolio.' },
+            { question: 'Are you legally authorized to work in the role location?', answer: 'I am happy to discuss my work authorization status and requirements during the interview.' },
+            { question: 'What is your notice period or earliest start date?', answer: noticePeriod || 'Available to discuss start dates and notice periods.' },
           ],
         },
         internshala: {
           whyShouldYouBeHired: `I should be hired for the ${jobTitle} role at ${companyName} because I bring a unique blend of strong algorithmic foundation and real-world project development experience. With multiple full-stack applications published on GitHub (@${candidate.githubMetrics.username}), I can understand codebases rapidly, write clean code, and deliver features on time. I am enthusiastic, eager to learn, and ready to give full commitment to ${companyName}.`,
-          availabilityConfirmation: `Yes, I confirm that I am available to join immediately for the full duration of the internship/role and can commit the required hours.`,
+          availabilityConfirmation: `Available to discuss start date and duration based on company requirements.`,
           relevantProjectExperience: `Developed a modern full-stack application leveraging scalable frameworks, focusing on modular component design, clean APIs, and robust data persistence.`,
           assignmentSubmissionCover: `Please find my detailed submission. I have adhered strictly to clean code guidelines, modular folder structure, comprehensive error handling, and responsive UI design.`,
           workPreference: 'In-Office / Remote as preferred by company',
