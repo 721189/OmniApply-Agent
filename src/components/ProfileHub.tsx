@@ -28,7 +28,43 @@ import {
 } from 'lucide-react';
 import { ProfileUrls, CandidateAnalysis, AgentTask, SampleProfilePreset } from '../types';
 import { apiFetch } from '../utils/apiClient';
-import { SAMPLE_PROFILE_PRESETS } from '../data/mockProfiles';
+import * as MockData from '../data/mockProfiles';
+
+const FALLBACK_PROFILE_PRESETS: SampleProfilePreset[] = [
+  {
+    id: 'preset-shivam',
+    name: 'Shivam Singh',
+    role: 'Staff Full-Stack & AI Systems Engineer',
+    urls: {
+      linkedin: 'https://linkedin.com/in/shivamsingh-tech',
+      github: 'https://github.com/shivamsingh',
+      leetcode: 'https://leetcode.com/shivamsingh/',
+      substack: 'https://substack.com/@shivamsingh',
+      twitter: 'https://x.com/shivamsingh_dev',
+      portfolio: 'https://shivamsingh.dev',
+      resumeText: 'Experienced Staff Full-Stack & AI Systems Engineer with 6+ years architecting high-throughput distributed systems, vector retrieval engines, agentic LLM pipelines, and production React applications. Proficient in TypeScript, React, Node.js, Go, Python, PostgreSQL, and Docker.',
+    },
+  },
+  {
+    id: 'preset-backend',
+    name: 'Elena Rostova',
+    role: 'Principal Distributed Systems Engineer',
+    urls: {
+      linkedin: 'https://linkedin.com/in/elena-rostova-systems',
+      github: 'https://github.com/erostova-core',
+      leetcode: 'https://leetcode.com/u/rostova_dsa',
+      substack: 'https://systems-scale.substack.com',
+      twitter: 'https://x.com/elena_systems',
+      portfolio: 'https://elena-systems.io',
+      resumeText: 'Principal Systems Architect specializing in sub-millisecond query engines, distributed consensus (Raft/Paxos), Postgres optimization, and cloud-native infrastructure.',
+    },
+  },
+];
+
+export const SAMPLE_PROFILE_PRESETS: SampleProfilePreset[] =
+  (MockData as any).SAMPLE_PROFILE_PRESETS && Array.isArray((MockData as any).SAMPLE_PROFILE_PRESETS) && (MockData as any).SAMPLE_PROFILE_PRESETS.length > 0
+    ? (MockData as any).SAMPLE_PROFILE_PRESETS
+    : FALLBACK_PROFILE_PRESETS;
 
 interface ProfileHubProps {
   urls: ProfileUrls;
@@ -58,7 +94,7 @@ export const ProfileHub: React.FC<ProfileHubProps> = ({
   const [liveScrapeStatus, setLiveScrapeStatus] = useState<{ [key: string]: { checking?: boolean; success?: boolean; details?: string } }>({});
 
   const handleApplyPreset = (preset: SampleProfilePreset) => {
-    setSelectedPresetId(preset.id);
+    setSelectedPresetId(preset.id || preset.name);
     setUrls(preset.urls);
   };
 
@@ -146,19 +182,23 @@ export const ProfileHub: React.FC<ProfileHubProps> = ({
               <span>Load 1-Click Profile Preset:</span>
             </div>
             <div className="flex flex-wrap gap-2">
-              {SAMPLE_PROFILE_PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  onClick={() => handleApplyPreset(preset)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
-                    selectedPresetId === preset.id
-                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
-                      : 'bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700'
-                  }`}
-                >
-                  {preset.name} ({preset.role.split(' ')[0]})
-                </button>
-              ))}
+              {(SAMPLE_PROFILE_PRESETS || []).map((preset, idx) => {
+                const presetKey = preset.id || `preset-${idx}`;
+                const roleLabel = preset.role ? ` (${preset.role.split(' ')[0]})` : '';
+                return (
+                  <button
+                    key={presetKey}
+                    onClick={() => handleApplyPreset(preset)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+                      selectedPresetId === (preset.id || preset.name)
+                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
+                        : 'bg-slate-900 text-slate-300 border border-slate-800 hover:border-slate-700'
+                    }`}
+                  >
+                    {preset.name}{roleLabel}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>

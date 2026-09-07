@@ -18,10 +18,7 @@ import {
   JobStatus,
   TabType
 } from './types';
-import { 
-  SAMPLE_PROFILE_PRESETS, 
-  DEFAULT_SAMPLE_ANALYSIS 
-} from './data/mockProfiles';
+import * as MockData from './data/mockProfiles';
 import { AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
 import { apiFetch } from './utils/apiClient';
 
@@ -34,15 +31,17 @@ export default function App() {
   
   // Profile URLs state - default to first rich preset
   const [urls, setUrls] = useState<ProfileUrls>(
-    SAMPLE_PROFILE_PRESETS?.[0]?.urls || {
-      linkedin: '',
-      github: '',
-      leetcode: '',
-      substack: '',
+    (MockData as any).SAMPLE_PROFILE_PRESETS?.[0]?.urls || {
+      linkedin: 'https://linkedin.com/in/shivamsingh-tech',
+      github: 'https://github.com/shivamsingh',
+      leetcode: 'https://leetcode.com/shivamsingh/',
+      substack: 'https://substack.com/@shivamsingh',
       twitter: '',
     }
   );
-  const [analysis, setAnalysis] = useState<CandidateAnalysis | null>(DEFAULT_SAMPLE_ANALYSIS);
+  const [analysis, setAnalysis] = useState<CandidateAnalysis | null>(
+    (MockData as any).DEFAULT_SAMPLE_ANALYSIS || null
+  );
   const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
   const [activeTask, setActiveTask] = useState<AgentTask | null>(null);
 

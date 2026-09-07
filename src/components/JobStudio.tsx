@@ -16,7 +16,62 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { PlatformType, CandidateAnalysis, AgentTask, SampleJobPreset } from '../types';
-import { SAMPLE_JOB_PRESETS } from '../data/mockProfiles';
+import * as MockData from '../data/mockProfiles';
+
+const FALLBACK_JOB_PRESETS: SampleJobPreset[] = [
+  {
+    id: 'job-1',
+    title: 'Senior Full-Stack AI Engineer',
+    company: 'NexusFlow AI',
+    platform: 'wellfound',
+    salary: '$160,000 – $210,000 + 0.5% Equity',
+    description: `About NexusFlow AI:
+NexusFlow is building autonomous agentic workflows for modern enterprise data stacks. We're looking for a Senior Full-Stack AI Engineer to own end-to-end multi-agent orchestration, realtime streaming dashboards, and high-performance React frontends.
+
+Responsibilities:
+- Architect and deploy production LLM workflows using Gemini, Claude, and OpenAI APIs.
+- Build high-responsiveness web interfaces in React, TypeScript, and Tailwind CSS.
+- Optimize distributed backend services in Node.js/Go with PostgreSQL and vector stores.
+- Design resilient retrieval-augmented generation (RAG) and tool-calling agent loops.
+
+Requirements:
+- 4+ years of professional full-stack development experience.
+- Strong proficiency with TypeScript, React, Node.js, and modern CSS.
+- Hands-on experience integrating LLM APIs, function calling, or vector search.
+- Track record of shipping customer-facing features with high craft and polish.`,
+  },
+  {
+    id: 'job-2',
+    title: 'Staff Backend & Infrastructure Engineer',
+    company: 'HyperScale Cloud',
+    platform: 'linkedin',
+    salary: '$180,000 – $240,000 + RSU Grants',
+    description: `HyperScale Cloud is hiring a Staff Backend Engineer to scale our multi-tenant telemetry and routing engine handling 100k+ req/sec.
+
+Requirements:
+- Deep experience in distributed systems, Golang or Node/TypeScript, and Postgres.
+- Strong background in high-concurrency event streaming (Kafka/Pulsar/Redis).
+- Proven ability to mentor engineering teams and design resilient API contracts.`,
+  },
+  {
+    id: 'job-3',
+    title: 'Lead Frontend Architect',
+    company: 'Starlight Design Labs',
+    platform: 'general',
+    salary: '$150,000 – $195,000 + Equity',
+    description: `Starlight Design Labs is seeking a Lead Frontend Architect to spearhead our next-generation collaborative canvas and design suite.
+
+Requirements:
+- Exceptional mastery of modern React, WebGL/Canvas rendering, and TypeScript.
+- Strong understanding of web performance, bundle optimization, and accessible UI.
+- Passion for visual craftsmanship, fluid physics animations, and typographic precision.`,
+  },
+];
+
+export const SAMPLE_JOB_PRESETS: SampleJobPreset[] = 
+  (MockData as any).SAMPLE_JOB_PRESETS && Array.isArray((MockData as any).SAMPLE_JOB_PRESETS) && (MockData as any).SAMPLE_JOB_PRESETS.length > 0
+    ? (MockData as any).SAMPLE_JOB_PRESETS
+    : FALLBACK_JOB_PRESETS;
 
 interface JobStudioProps {
   analysis: CandidateAnalysis | null;
