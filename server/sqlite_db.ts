@@ -1,7 +1,11 @@
 import initSqlJs, { Database as SqlJsDatabase } from 'sql.js';
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
 import { Pool } from 'pg';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import { 
   UserAccount, 
   CandidateAnalysis, 
@@ -160,7 +164,20 @@ async function initSchema() {
     return;
   }
 
-  const SQL = await initSqlJs();
+  const locateFile = (file: string) => {
+    const candidates = [
+      path.join(process.cwd(), 'node_modules', 'sql.js', 'dist', file),
+      path.join(__dirname, '..', 'node_modules', 'sql.js', 'dist', file),
+      path.join(__dirname, 'node_modules', 'sql.js', 'dist', file),
+      path.join('/tmp', file),
+    ];
+    for (const cand of candidates) {
+      if (fs.existsSync(cand)) return cand;
+    }
+    return candidates[0];
+  };
+
+  const SQL = await initSqlJs({ locateFile });
   if (fs.existsSync(DB_PATH)) {
     try {
       const fileBuffer = fs.readFileSync(DB_PATH);
