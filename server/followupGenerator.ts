@@ -9,7 +9,7 @@ export function generateFollowUpSequence(
   companyName: string,
   targetPlatform: string = 'linkedin'
 ): FollowUpSequence {
-  const candidateName = candidate.fullName || 'Shivam Singh';
+  const candidateName = candidate.fullName || 'Alex Chen';
   const starRepo = candidate.githubMetrics?.featuredRepos?.[0]?.repoName || 'distributed-cache';
   const starTech = candidate.githubMetrics?.topLanguages?.[0] || 'TypeScript';
 
@@ -28,7 +28,7 @@ I’ve summarized my background and key projects here for quick reference. Looki
 
 Best regards,
 ${candidateName}
-Portfolio / GitHub: https://github.com/${candidate.githubMetrics?.username || 'singhshivam'}`,
+Portfolio / GitHub: https://github.com/${candidate.githubMetrics?.username || 'alexchen-dev'}`,
       callToAction: 'Confirm application receipt and schedule initial screening call.',
       valueAddHook: `Direct reference to ${starTech} codebase and alignment with role requirements.`,
     },
@@ -63,7 +63,7 @@ Hope you're having a productive week.
 
 While thinking about the ${jobTitle} position, I put together a quick technical prototype / architecture outline demonstrating how to optimize event throughput and reduce API latency using ${starTech} and Redis. 
 
-I've documented the key insights here: https://github.com/${candidate.githubMetrics?.username || 'singhshivam'}/${starRepo}
+I've documented the key insights here: https://github.com/${candidate.githubMetrics?.username || 'alexchen-dev'}/${starRepo}
 
 Regardless of where you are in the hiring process, I hope this provides some value to your team. Happy to chat if you’d like to walk through the implementation!
 
@@ -82,7 +82,7 @@ ${candidateName}`,
 
 I know how busy the engineering and recruiting calendars get, so I assume now might not be the optimal time to move forward for the ${jobTitle} position.
 
-I’ll plan on closing the loop on my end, but I remain a huge supporter of ${companyName} and would love to stay connected on LinkedIn (linkedin.com/in/shivam-singh) for future opportunities down the road.
+I’ll plan on closing the loop on my end, but I remain a huge supporter of ${companyName} and would love to stay connected on LinkedIn (linkedin.com/in/alexchen-dev) for future opportunities down the road.
 
 Wishing you and the team continued success!
 

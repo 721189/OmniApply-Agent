@@ -19,7 +19,7 @@ export const ResumeBuilderModal: React.FC<ResumeBuilderModalProps> = ({
   isOpen,
   onClose,
   resumePackage,
-  candidateName = 'Shivam Singh',
+  candidateName = 'Alex Chen',
   jobTitle = 'Software Engineer',
   companyName = 'Target Company',
   onRegenerate,

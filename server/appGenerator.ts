@@ -13,7 +13,7 @@ export async function generateApplicationPackage(
   noticePeriod?: string,
   onProgress?: (progress: number, stage: string, log: AgentTaskLog) => void
 ): Promise<ApplicationPackage> {
-  const workerId = `worker-celery-redis-${Math.floor(10 + Math.random() * 90)}`;
+  const workerId = 'async-worker-pipeline-02';
 
   const emit = (progress: number, stage: string, message: string, level: 'info' | 'success' = 'info') => {
     if (onProgress) {

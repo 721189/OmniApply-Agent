@@ -64,27 +64,25 @@ export async function createApp() {
 
   // --- 1. Health & Status ---
   app.get('/api/health', (req: Request, res: Response) => {
-    res.json({ status: 'ok', time: new Date().toISOString(), engine: 'OmniApply AI Agent Core' });
+    const dbStatus = db.getDatabaseStatus();
+    res.json({ 
+      status: 'ok', 
+      time: new Date().toISOString(), 
+      engine: 'OmniApply AI Agent Core',
+      database: dbStatus,
+      workerPipeline: 'In-Process Asynchronous Pipeline Worker Engine'
+    });
   });
 
   // --- 2. Auth & Email Verification Routes ---
   app.post('/api/auth/login', async (req: Request, res: Response) => {
     const { email, password } = req.body;
-    if (!email) {
-      return res.status(400).json({ error: 'Email is required' });
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
     }
     const result = await db.verifyUserCredentials(email, password);
     if (!result.success) {
-      if (result.error === 'User not found with this email') {
-        const created = await db.createUser(email.split('@')[0], email, password);
-        return res.json({
-          user: created.user,
-          token: created.token,
-          verificationCode: created.code,
-          message: 'Account created! Verification code sent to email.',
-        });
-      }
-      return res.status(401).json({ error: result.error });
+      return res.status(401).json({ error: result.error || 'Invalid credentials' });
     }
     res.json({
       user: result.user,
@@ -95,15 +93,22 @@ export async function createApp() {
 
   app.post('/api/auth/register', async (req: Request, res: Response) => {
     const { name, email, password } = req.body;
-    if (!email) {
-      return res.status(400).json({ error: 'Email is required' });
+    if (!email || !email.includes('@')) {
+      return res.status(400).json({ error: 'Valid email is required' });
+    }
+    if (!password || password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+    }
+    const existing = await db.getUserByEmail(email);
+    if (existing) {
+      return res.status(409).json({ error: 'An account with this email already exists. Please log in.' });
     }
     const result = await db.createUser(name || email.split('@')[0], email, password);
+    console.log(`[Auth Dispatch] Secure verification code dispatched to ${email}`);
     res.json({
       user: result.user,
       token: result.token,
-      verificationCode: result.code,
-      message: 'Account created! Verification code sent to ' + email,
+      message: 'Account registered successfully! Verification code dispatched to ' + email,
     });
   });
 
@@ -114,11 +119,14 @@ export async function createApp() {
     }
     const user = await db.getUserByEmail(email);
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.json({ success: true, message: `If that account exists, a verification code was sent to ${email}` });
     }
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const { generateSecureVerificationCode } = await import('./auth');
+    const code = generateSecureVerificationCode();
     user.verificationCode = code;
-    res.json({ success: true, verificationCode: code, message: `New verification code sent to ${email}` });
+    await db.insertUserRecord(user);
+    console.log(`[Auth Dispatch] Resent verification code to ${email}`);
+    res.json({ success: true, message: `New verification code sent to ${email}` });
   });
 
   app.post('/api/auth/verify-email', async (req: Request, res: Response) => {
@@ -131,7 +139,7 @@ export async function createApp() {
       const user = await db.getUserByEmail(email);
       res.json({ success: true, user: user ? db.sanitizeUser(user) : null, message: 'Email verified successfully!' });
     } else {
-      res.status(400).json({ error: 'Invalid verification code.' });
+      res.status(400).json({ error: 'Invalid or expired verification code.' });
     }
   });
 
@@ -200,7 +208,7 @@ export async function createApp() {
       const name = userName || user.name || 'Engineer';
 
       const taskId = `task-analysis-${Date.now()}`;
-      const workerId = `celery-worker-redis-${Math.floor(10 + Math.random() * 90)}`;
+      const workerId = `async-worker-node-${Math.floor(10 + Math.random() * 90)}`;
       const task: AgentTask = {
         taskId,
         type: 'profile_analysis',
@@ -213,7 +221,7 @@ export async function createApp() {
           {
             timestamp: new Date().toISOString(),
             level: 'info',
-            message: `Celery task dispatched on queue 'career_agent_high_priority'`,
+            message: `Async worker task dispatched on priority application queue`,
             workerId,
             stage: 'Task Queued',
           },
@@ -314,7 +322,7 @@ export async function createApp() {
       }
 
       const taskId = `task-appgen-${Date.now()}`;
-      const workerId = `celery-worker-redis-${Math.floor(10 + Math.random() * 90)}`;
+      const workerId = `async-worker-node-${Math.floor(10 + Math.random() * 90)}`;
       const task: AgentTask = {
         taskId,
         type: 'application_generation',
@@ -327,7 +335,7 @@ export async function createApp() {
           {
             timestamp: new Date().toISOString(),
             level: 'info',
-            message: `Celery task started for ${companyName} (${jobTitle})`,
+            message: `Async worker task started for ${companyName} (${jobTitle})`,
             workerId,
             stage: 'Job Ingestion',
           },

@@ -26,7 +26,7 @@ export const OfferCalculatorModal: React.FC<OfferCalculatorModalProps> = ({
   onClose,
   job,
   onSaveOfferDetails,
-  candidateName = 'Shivam Singh',
+  candidateName = 'Alex Chen',
 }) => {
   // Offer state default initialized from job or realistic senior defaults
   const [offer, setOffer] = useState<JobOfferDetails>({

@@ -81,3 +81,27 @@ export function verifySignedToken(token: string): { valid: boolean; userId?: str
   return { valid: false };
 }
 
+/**
+ * Cryptographically secure 6-digit OTP generation (using crypto.randomInt)
+ */
+export function generateSecureVerificationCode(): string {
+  // Generates unbiased, cryptographically strong integer in range [100000, 999999]
+  return crypto.randomInt(100000, 1000000).toString();
+}
+
+/**
+ * Timing-safe comparison for OTP verification to prevent side-channel timing attacks
+ */
+export function verifySecureCode(inputCode: string, savedCode?: string): boolean {
+  if (!inputCode || !savedCode) return false;
+  try {
+    const a = Buffer.from(inputCode.trim());
+    const b = Buffer.from(savedCode.trim());
+    if (a.length !== b.length) return false;
+    return crypto.timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
+}
+
+

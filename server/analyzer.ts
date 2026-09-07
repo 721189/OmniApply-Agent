@@ -26,7 +26,7 @@ export async function analyzeCandidateProfiles(
   const subHandle = hasSubstack ? extractUsernameFromUrl(urls.substack, 'substack') : '';
   const twHandle = hasTwitter ? extractUsernameFromUrl(urls.twitter, 'twitter') : '';
 
-  const workerId = `worker-celery-redis-${Math.floor(10 + Math.random() * 90)}`;
+  const workerId = 'async-worker-pipeline-01';
 
   const emit = (progress: number, stage: string, message: string, level: 'info' | 'success' = 'info') => {
     if (onProgress) {

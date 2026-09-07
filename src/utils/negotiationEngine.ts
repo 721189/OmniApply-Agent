@@ -285,7 +285,7 @@ export function generateCounterOfferScript(
   offer: JobOfferDetails,
   companyName: string,
   roleTitle: string,
-  candidateName: string = 'Shivam Singh'
+  candidateName: string = 'Candidate'
 ): CounterOfferScript {
   const benchmark = getMarketBenchmark(offer.locationTier, offer.seniorityLevel);
   const metrics = calculateOfferMetrics(offer);

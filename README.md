@@ -20,7 +20,7 @@
   - [3. Recruiter Follow-up Drip Sequencer & .ICS Sync](#3-recruiter-follow-up-drip-sequencer--ics-sync)
   - [4. 📊 Salary Negotiation & Offer Evaluation Calculator](#4--salary-negotiation--offer-evaluation-calculator)
   - [5. Platform-Tailored Application Adapters](#5-platform-tailored-application-adapters)
-  - [6. Real-Time Celery / Redis Worker Telemetry](#6-real-time-celery--redis-worker-telemetry)
+  - [6. Real-Time Async Pipeline & Worker Telemetry](#6-real-time-async-pipeline--worker-telemetry)
   - [7. Dual-View Kanban & Table Pipeline](#7-dual-view-kanban--table-pipeline)
 - [📡 API Reference](#-api-reference)
 - [🛠️ Tech Stack & Dependencies](#-tech-stack--dependencies)
@@ -127,9 +127,10 @@
 | **Internshala** | Structured answers to "Why should you be hired?" and availability confirmations. |
 | **Enterprise ATS (Greenhouse / Lever)** | Formal cover letter, tailored resume bullets, and candidate-grounded screening answers. |
 
-### 6. Real-Time Celery / Redis Worker Telemetry
-- Simulates production-grade asynchronous worker pools (`celery-worker-01`, `celery-worker-02`).
+### 6. Real-Time Async Pipeline & Worker Telemetry
+- Application-level async worker telemetry (`async-worker-node-01`, `async-worker-node-02`).
 - Provides real-time execution logs across four pipeline stages (`INGESTION` → `CORRELATION` → `SYNTHESIS` → `GENERATION`).
+- Non-blocking task monitoring with persistent telemetry logs in PostgreSQL / SQLite.
 
 ### 7. Dual-View Kanban & Table Pipeline
 - Track job statuses across 6 distinct phases: `Prepared`, `Applied`, `Interviewing`, `Offer Received`, `Archived`.
@@ -160,8 +161,9 @@
 - `DELETE /api/jobs/:id` — Remove job record.
 
 ### Authentication & Privacy
-- `POST   /api/auth/login` — Sign in / auto-register.
-- `POST   /api/auth/register` — Create new user profile.
+- `POST   /api/auth/login` — Sign in with email and password.
+- `POST   /api/auth/register` — Create new candidate profile with CSPRNG OTP verification.
+- `POST   /api/auth/verify-email` — Verify email via constant-time cryptographic comparison.
 - `GET    /api/auth/me` — Get active session.
 - `GET    /api/auth/export-data` — Export user records as JSON.
 - `DELETE /api/auth/account` — Permanent account purge.
@@ -176,9 +178,10 @@
 - **Security & Authentication**:
   - **PBKDF2 Salted Hashing**: 100,000-iteration SHA-512 password hashing with 16-byte cryptographically unique salts via Node `crypto`.
   - **HMAC-SHA256 Signed Tokens**: 7-day expiration session tokens with constant-time signature verification. Strict token check (no unauthenticated demo fallback).
+  - **CSPRNG OTP Verification**: Cryptographically secure 6-digit codes (`crypto.randomInt`) with timing-safe verification and 15-minute expirations.
   - **HTTP Security Headers**: Native headers (`X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`, `Referrer-Policy`).
   - **API Rate Limiting**: Sliding-window rate limiter (60 requests/minute per IP) on `/api/*` endpoints.
-- **Database & Persistence**: Embedded relational SQLite database (`sqlite3` / `omni_database.db`) storing user accounts, candidate profiles, job applications, task telemetry, and chat history. Supports full data export & restore (`/api/user/export`, `/api/user/import`).
+- **Database & Persistence**: Production-ready PostgreSQL storage with relational SQLite WASM fallback for ephemeral preview environments. Supports full data export & restore (`/api/user/export`, `/api/user/import`).
 - **Build & Packaging**: Vite 6, esbuild CommonJS single-bundle compilation (`dist/server.cjs`).
 
 ---
@@ -240,5 +243,5 @@ Contributions are welcome! Please review [CONTRIBUTING.md](./CONTRIBUTING.md) fo
 ---
 
 <div align="center">
-  <sub>Built with ❤️ by Shivam Singh.</sub>
+  <sub>Built with ❤️ by the OmniApply Open Source Contributors.</sub>
 </div>

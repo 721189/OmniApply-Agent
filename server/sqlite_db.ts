@@ -16,7 +16,14 @@ import {
   ChatMessage, 
   ActivityLog 
 } from '../src/types';
-import { hashPassword, verifyPassword, generateSignedToken, verifySignedToken } from './auth';
+import { 
+  hashPassword, 
+  verifyPassword, 
+  generateSignedToken, 
+  verifySignedToken,
+  generateSecureVerificationCode,
+  verifySecureCode
+} from './auth';
 
 export interface StoredUser extends UserAccount {
   passwordHash?: string;
@@ -25,7 +32,14 @@ export interface StoredUser extends UserAccount {
 }
 
 // Support external PostgreSQL database (e.g. Vercel Postgres, Neon, Supabase, Cloud SQL) or local SQLite WASM
-const POSTGRES_URL = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.PGDATABASE;
+function isPostgresConnectionString(url?: string | null): boolean {
+  if (!url || typeof url !== 'string') return false;
+  const trimmed = url.trim();
+  return trimmed.startsWith('postgres://') || trimmed.startsWith('postgresql://');
+}
+
+const rawDbUrl = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+const POSTGRES_URL = isPostgresConnectionString(rawDbUrl) ? rawDbUrl!.trim() : null;
 let pgPool: Pool | null = null;
 
 if (POSTGRES_URL) {
@@ -37,11 +51,36 @@ if (POSTGRES_URL) {
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 5000,
     });
-    console.log('[Database] Connected to external PostgreSQL database pool.');
+    pgPool.on('error', (err) => {
+      console.warn('[Database] PostgreSQL pool background warning:', err.message || err);
+    });
+    console.log('[Database] Configured external PostgreSQL database pool.');
   } catch (err) {
-    console.error('[Database] Failed to initialize PostgreSQL pool:', err);
+    console.warn('[Database] Failed to configure PostgreSQL pool:', err);
+    pgPool = null;
   }
+} else if (rawDbUrl && !isPostgresConnectionString(rawDbUrl)) {
+  console.warn('[Database] Configured DATABASE_URL is not a valid PostgreSQL URI (must start with postgres:// or postgresql://). Falling back to embedded SQLite WASM storage.');
+} else if (process.env.NODE_ENV === 'production' || process.env.VERCEL) {
+  console.warn('[Database ARCHITECTURE ALERT] Running in production/serverless mode without DATABASE_URL!');
+  console.warn('[Database ARCHITECTURE ALERT] Local /tmp or SQLite storage is ephemeral and resets on cold starts.');
+  console.warn('[Database ARCHITECTURE ALERT] Set DATABASE_URL (PostgreSQL) for durable production persistence.');
 }
+
+export function getDatabaseStatus() {
+  const isServerless = !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+  const isProd = process.env.NODE_ENV === 'production';
+  return {
+    engine: pgPool ? 'PostgreSQL' : 'SQLite WASM',
+    durable: !!pgPool,
+    poolActive: !!pgPool,
+    mode: pgPool ? 'production-durable' : (isProd || isServerless ? 'ephemeral-serverless-fallback' : 'local-development'),
+    warning: (!pgPool && (isProd || isServerless))
+      ? 'CRITICAL PERSISTENCE ADVISORY: Serverless environment detected without DATABASE_URL. Ephemeral storage is active and will reset across function cold starts. Connect a managed PostgreSQL database (Neon, Supabase, Vercel Postgres) for durable production persistence.'
+      : undefined,
+  };
+}
+
 
 // Fallback SQLite WASM persistence path resolution
 function getWritableDbPath(): string {
@@ -87,82 +126,91 @@ function convertParamsForPg(sql: string): string {
 
 async function initSchema() {
   if (pgPool) {
-    const client = await pgPool.connect();
     try {
-      await client.query(`
-        CREATE TABLE IF NOT EXISTS users (
-          id VARCHAR(255) PRIMARY KEY,
-          name VARCHAR(255) NOT NULL,
-          email VARCHAR(255) UNIQUE NOT NULL,
-          is_verified INT NOT NULL DEFAULT 0,
-          title VARCHAR(255),
-          location VARCHAR(255),
-          avatar_url TEXT,
-          verification_code VARCHAR(255),
-          password_hash TEXT,
-          password_salt TEXT,
-          saved_urls TEXT,
-          created_at VARCHAR(255) NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS user_tokens (
-          token VARCHAR(512) PRIMARY KEY,
-          user_id VARCHAR(255) NOT NULL,
-          created_at VARCHAR(255) NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS candidate_analyses (
-          user_id VARCHAR(255) PRIMARY KEY,
-          full_name VARCHAR(255) NOT NULL,
-          data_json TEXT NOT NULL,
-          created_at VARCHAR(255) NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS job_applications (
-          id VARCHAR(255) PRIMARY KEY,
-          user_id VARCHAR(255) NOT NULL,
-          job_title VARCHAR(255) NOT NULL,
-          company_name VARCHAR(255) NOT NULL,
-          target_platform VARCHAR(255) NOT NULL,
-          status VARCHAR(255) NOT NULL,
-          data_json TEXT NOT NULL,
-          created_at VARCHAR(255) NOT NULL,
-          updated_at VARCHAR(255) NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS agent_tasks (
-          task_id VARCHAR(255) PRIMARY KEY,
-          type VARCHAR(255) NOT NULL,
-          status VARCHAR(255) NOT NULL,
-          data_json TEXT NOT NULL,
-          created_at VARCHAR(255) NOT NULL,
-          completed_at VARCHAR(255)
-        );
-        CREATE TABLE IF NOT EXISTS chat_messages (
-          id VARCHAR(255) PRIMARY KEY,
-          user_id VARCHAR(255) NOT NULL,
-          sender VARCHAR(255) NOT NULL,
-          text TEXT NOT NULL,
-          topic VARCHAR(255),
-          referenced_job_id VARCHAR(255),
-          timestamp VARCHAR(255) NOT NULL
-        );
-        CREATE TABLE IF NOT EXISTS activity_logs (
-          id VARCHAR(255) PRIMARY KEY,
-          user_id VARCHAR(255) NOT NULL,
-          action VARCHAR(255) NOT NULL,
-          category VARCHAR(255) NOT NULL,
-          details TEXT NOT NULL,
-          ip_address VARCHAR(255),
-          meta_json TEXT,
-          timestamp VARCHAR(255) NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-        CREATE INDEX IF NOT EXISTS idx_user_tokens_user_id ON user_tokens(user_id);
-        CREATE INDEX IF NOT EXISTS idx_jobs_user_id ON job_applications(user_id);
-        CREATE INDEX IF NOT EXISTS idx_chat_user_id ON chat_messages(user_id);
-        CREATE INDEX IF NOT EXISTS idx_logs_user_id ON activity_logs(user_id);
-      `);
-    } finally {
-      client.release();
+      const client = await pgPool.connect();
+      try {
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS users (
+            id VARCHAR(255) PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            email VARCHAR(255) UNIQUE NOT NULL,
+            is_verified INT NOT NULL DEFAULT 0,
+            title VARCHAR(255),
+            location VARCHAR(255),
+            avatar_url TEXT,
+            verification_code VARCHAR(255),
+            password_hash TEXT,
+            password_salt TEXT,
+            saved_urls TEXT,
+            created_at VARCHAR(255) NOT NULL
+          );
+          CREATE TABLE IF NOT EXISTS user_tokens (
+            token VARCHAR(512) PRIMARY KEY,
+            user_id VARCHAR(255) NOT NULL,
+            created_at VARCHAR(255) NOT NULL
+          );
+          CREATE TABLE IF NOT EXISTS candidate_analyses (
+            user_id VARCHAR(255) PRIMARY KEY,
+            full_name VARCHAR(255) NOT NULL,
+            data_json TEXT NOT NULL,
+            created_at VARCHAR(255) NOT NULL
+          );
+          CREATE TABLE IF NOT EXISTS job_applications (
+            id VARCHAR(255) PRIMARY KEY,
+            user_id VARCHAR(255) NOT NULL,
+            job_title VARCHAR(255) NOT NULL,
+            company_name VARCHAR(255) NOT NULL,
+            target_platform VARCHAR(255) NOT NULL,
+            status VARCHAR(255) NOT NULL,
+            data_json TEXT NOT NULL,
+            created_at VARCHAR(255) NOT NULL,
+            updated_at VARCHAR(255) NOT NULL
+          );
+          CREATE TABLE IF NOT EXISTS agent_tasks (
+            task_id VARCHAR(255) PRIMARY KEY,
+            type VARCHAR(255) NOT NULL,
+            status VARCHAR(255) NOT NULL,
+            data_json TEXT NOT NULL,
+            created_at VARCHAR(255) NOT NULL,
+            completed_at VARCHAR(255)
+          );
+          CREATE TABLE IF NOT EXISTS chat_messages (
+            id VARCHAR(255) PRIMARY KEY,
+            user_id VARCHAR(255) NOT NULL,
+            sender VARCHAR(255) NOT NULL,
+            text TEXT NOT NULL,
+            topic VARCHAR(255),
+            referenced_job_id VARCHAR(255),
+            timestamp VARCHAR(255) NOT NULL
+          );
+          CREATE TABLE IF NOT EXISTS activity_logs (
+            id VARCHAR(255) PRIMARY KEY,
+            user_id VARCHAR(255) NOT NULL,
+            action VARCHAR(255) NOT NULL,
+            category VARCHAR(255) NOT NULL,
+            details TEXT NOT NULL,
+            ip_address VARCHAR(255),
+            meta_json TEXT,
+            timestamp VARCHAR(255) NOT NULL
+          );
+          CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+          CREATE INDEX IF NOT EXISTS idx_user_tokens_user_id ON user_tokens(user_id);
+          CREATE INDEX IF NOT EXISTS idx_jobs_user_id ON job_applications(user_id);
+          CREATE INDEX IF NOT EXISTS idx_chat_user_id ON chat_messages(user_id);
+          CREATE INDEX IF NOT EXISTS idx_logs_user_id ON activity_logs(user_id);
+        `);
+      } finally {
+        client.release();
+      }
+      console.log('[Database] PostgreSQL schema initialized successfully.');
+      return;
+    } catch (pgErr: any) {
+      console.warn(`[Database] PostgreSQL initialization failed (${pgErr?.message || pgErr}). Falling back to embedded SQLite WASM storage.`);
+      try {
+        await pgPool.end();
+      } catch {}
+      pgPool = null;
     }
-    return;
   }
 
   const locateFile = (file: string) => {
@@ -262,33 +310,33 @@ async function initSchema() {
     );
   `);
 
-  // Seed default demo user if missing
-  const stmt = dbInstance.prepare('SELECT * FROM users WHERE id = ?;', ['usr-demo-001']);
+  // Optional open-source demo seed for local preview environments (strictly no backdoor tokens)
+  const stmt = dbInstance.prepare('SELECT * FROM users WHERE email = ?;', ['alex.chen@example.org']);
   const hasDemo = stmt.step();
   stmt.free();
 
-  if (!hasDemo) {
-    const demoPass = hashPassword('password123');
+  if (!hasDemo && process.env.NODE_ENV !== 'production') {
+    const demoPass = hashPassword('demo-secure-pass-2026');
     const now = new Date().toISOString();
     const savedUrls = JSON.stringify({
-      linkedin: '',
-      github: '',
-      leetcode: '',
-      substack: '',
-      twitter: '',
-      portfolio: '',
-      resumeText: '',
+      linkedin: 'https://linkedin.com/in/alexchen-dev',
+      github: 'https://github.com/alexchen-dev',
+      leetcode: 'https://leetcode.com/u/alexchen_dsa',
+      substack: 'https://systems-scale.substack.com',
+      twitter: 'https://x.com/alexchen_dev',
+      portfolio: 'https://alexchen.dev',
+      resumeText: 'Staff Full-Stack & Systems Engineer with experience in scalable distributed web applications, event queues, and AI architectures.',
     });
     dbInstance.run(
       `INSERT OR REPLACE INTO users (id, name, email, is_verified, title, location, avatar_url, verification_code, password_hash, password_salt, saved_urls, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       [
-        'usr-demo-001',
-        'Shivam Singh',
-        'singhshivam20009@gmail.com',
+        'usr-demo-alex',
+        'Alex Chen',
+        'alex.chen@example.org',
         1,
-        'Full-Stack Software Engineer',
-        'Bangalore, India',
+        'Staff Full-Stack & Systems Engineer',
+        'San Francisco, CA',
         'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
         null,
         demoPass.hash,
@@ -296,10 +344,6 @@ async function initSchema() {
         savedUrls,
         now,
       ]
-    );
-    dbInstance.run(
-      'INSERT OR REPLACE INTO user_tokens (token, user_id, created_at) VALUES (?, ?, ?);',
-      ['demo-token-12345', 'usr-demo-001', now]
     );
   }
   persistDb();
@@ -385,7 +429,11 @@ export class SQLiteDatabase {
     getDb().catch((err) => console.error('[SQLiteDatabase] Init error:', err));
   }
 
-  private async insertUserRecord(u: StoredUser) {
+  public getDatabaseStatus() {
+    return getDatabaseStatus();
+  }
+
+  public async insertUserRecord(u: StoredUser) {
     await runSql(
       `INSERT OR REPLACE INTO users (id, name, email, is_verified, title, location, avatar_url, verification_code, password_hash, password_salt, saved_urls, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
@@ -407,7 +455,7 @@ export class SQLiteDatabase {
   }
 
   // --- Fast In-Memory Cache + Persistent Database Fallback + HMAC Stateless Token Verification ---
-  private userTokensMap: Map<string, string> = new Map([['demo-token-12345', 'usr-demo-001']]);
+  private userTokensMap: Map<string, string> = new Map();
 
   async getUserById(id: string): Promise<StoredUser | undefined> {
     const row = await getSql<any>('SELECT * FROM users WHERE id = ?;', [id]);
@@ -485,7 +533,7 @@ export class SQLiteDatabase {
 
   async createUser(name: string, email: string, password?: string): Promise<{ user: UserAccount; token: string; code: string }> {
     const existing = await this.getUserByEmail(email);
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const code = generateSecureVerificationCode();
 
     if (existing) {
       existing.verificationCode = code;
@@ -540,8 +588,8 @@ export class SQLiteDatabase {
   async verifyEmail(email: string, code: string): Promise<boolean> {
     const user = await this.getUserByEmail(email);
     if (!user) return false;
-    // STRICT Code verification - NO BACKDOORS
-    if (user.verificationCode && user.verificationCode === code) {
+    // Timing-safe cryptographic comparison
+    if (user.verificationCode && verifySecureCode(code, user.verificationCode)) {
       user.isVerified = true;
       user.verificationCode = undefined;
       await this.insertUserRecord(user);

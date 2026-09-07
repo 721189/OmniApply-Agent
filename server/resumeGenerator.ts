@@ -273,23 +273,23 @@ export function generateTailoredResumePackage(
       ];
 
   const structuredResume: ResumeData = {
-    fullName: candidate.fullName || 'Shivam Singh',
-    email: 'singhshivam20009@gmail.com',
-    phone: '+91 98765 43210',
-    location: 'Bangalore, India',
+    fullName: candidate.fullName || 'Alex Chen',
+    email: 'alex.chen@example.org',
+    phone: '+1 (555) 019-2834',
+    location: 'San Francisco, CA',
     links: {
-      github: `github.com/${candidate.githubMetrics?.username || 'singhshivam'}`,
-      linkedin: 'linkedin.com/in/shivam-singh',
-      portfolio: 'shivamsingh.dev',
-      leetcode: `leetcode.com/u/${candidate.leetcodeMetrics ? 'singhshivam' : 'profile'}`,
+      github: `github.com/${candidate.githubMetrics?.username || 'alexchen-dev'}`,
+      linkedin: 'linkedin.com/in/alexchen-dev',
+      portfolio: 'alexchen.dev',
+      leetcode: `leetcode.com/u/${candidate.leetcodeMetrics ? 'alexchen_dsa' : 'profile'}`,
     },
-    summary: candidate.executiveSummary || `Full-Stack Software Engineer with proven expertise in building scalable distributed systems, modern React frontends, and AI agent architectures.`,
+    summary: candidate.executiveSummary || `Staff Full-Stack & Systems Engineer with proven expertise in building scalable distributed systems, modern React frontends, and AI agent architectures.`,
     education: [
       {
-        institution: 'National Institute of Technology (NIT)',
-        degree: 'Bachelor of Technology in Computer Science & Engineering',
-        location: 'India',
-        duration: '2020 -- 2024',
+        institution: 'University of California, Berkeley',
+        degree: 'Bachelor of Science in Electrical Engineering & Computer Science',
+        location: 'Berkeley, CA',
+        duration: '2018 -- 2022',
         details: 'Relevant Coursework: Data Structures & Algorithms, Operating Systems, Distributed Systems, Database Management.',
       },
     ],

@@ -81,7 +81,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         if (!data.user.isVerified) {
           setMode('verify');
           setResendCountdown(30);
-          setSuccessMsg(`Verification code generated: ${data.verificationCode || '123456'}. Enter it below to complete verification.`);
+          setSuccessMsg(`Verification code sent to ${email}. Enter the 6-digit code below to complete verification.`);
         } else {
           setSuccessMsg('Logged in successfully!');
           setTimeout(onClose, 800);
@@ -142,7 +142,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to resend code');
       setResendCountdown(30);
-      setSuccessMsg(`New verification code generated: ${data.verificationCode || '123456'}`);
+      setSuccessMsg(`New verification code sent to ${email}`);
     } catch (err: any) {
       setError(err.message || 'Could not resend code');
     } finally {
@@ -158,8 +158,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       name: presetName,
       email: presetEmail,
       isVerified: true,
-      title: 'Full-Stack Software Engineer',
-      location: 'Bangalore / Remote',
+      title: 'Staff Full-Stack & Systems Engineer',
+      location: 'San Francisco, CA / Remote',
       createdAt: new Date().toISOString(),
     };
     onAuthSuccess(demoUser, 'demo-token');
@@ -377,11 +377,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={() => handlePresetSelect('Shivam Singh', 'singhshivam20009@gmail.com')}
+              onClick={() => handlePresetSelect('Alex Chen', 'alex.chen@example.org')}
               className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800 hover:border-indigo-500/60 text-left text-xs transition-colors"
             >
-              <div className="font-semibold text-slate-200 truncate">Shivam Singh</div>
-              <div className="text-[10px] text-slate-400 truncate">singhshivam20009@gmail.com</div>
+              <div className="font-semibold text-slate-200 truncate">Alex Chen</div>
+              <div className="text-[10px] text-slate-400 truncate">alex.chen@example.org</div>
             </button>
 
             <button

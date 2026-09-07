@@ -7,16 +7,16 @@ export type { SampleProfilePreset, SampleJobPreset };
  */
 export const SAMPLE_PROFILE_PRESETS: SampleProfilePreset[] = [
   {
-    id: 'preset-shivam',
-    name: 'Shivam Singh',
+    id: 'preset-alex',
+    name: 'Alex Chen',
     role: 'Staff Full-Stack & AI Systems Engineer',
     urls: {
-      linkedin: 'https://linkedin.com/in/shivamsingh-tech',
-      github: 'https://github.com/shivamsingh',
-      leetcode: 'https://leetcode.com/shivamsingh/',
-      substack: 'https://substack.com/@shivamsingh',
-      twitter: 'https://x.com/shivamsingh_dev',
-      portfolio: 'https://shivamsingh.dev',
+      linkedin: 'https://linkedin.com/in/alexchen-dev',
+      github: 'https://github.com/alexchen-dev',
+      leetcode: 'https://leetcode.com/u/alexchen_dsa',
+      substack: 'https://systems-scale.substack.com',
+      twitter: 'https://x.com/alexchen_dev',
+      portfolio: 'https://alexchen.dev',
       resumeText: 'Experienced Staff Full-Stack & AI Systems Engineer with 6+ years architecting high-throughput distributed systems, vector retrieval engines, agentic LLM pipelines, and production React applications. Proficient in TypeScript, React, Node.js, Go, Python, PostgreSQL, and Docker.',
     },
   },
@@ -108,7 +108,7 @@ Requirements:
  */
 export const DEFAULT_SAMPLE_ANALYSIS: CandidateAnalysis = {
   id: 'analysis-sample-01',
-  fullName: 'Shivam Singh',
+  fullName: 'Alex Chen',
   tagline: 'Staff Full-Stack & AI Systems Engineer',
   executiveSummary: 'Staff engineer with 6+ years of expertise across high-concurrency distributed systems, full-stack web development (React/Node/TypeScript), and real-time agentic AI architectures. Recognized for open-source contributions, high LeetCode competitive ranking, and deep technical writing on distributed systems and AI agents.',
   experienceLevel: 'Staff / Principal (6+ Years)',
@@ -131,7 +131,7 @@ export const DEFAULT_SAMPLE_ANALYSIS: CandidateAnalysis = {
     },
   ],
   githubMetrics: {
-    username: 'shivamsingh',
+    username: 'alexchen-dev',
     totalRepos: 36,
     topLanguages: ['TypeScript', 'Python', 'Go', 'Rust'],
     featuredRepos: [
@@ -183,7 +183,7 @@ export const DEFAULT_SAMPLE_ANALYSIS: CandidateAnalysis = {
     industryDomains: ['Enterprise SaaS', 'Generative AI', 'Cloud Infrastructure', 'Developer Tooling'],
   },
   substackInsights: {
-    handle: 'shivamsingh',
+    handle: 'alexchen',
     publicationTopics: ['Distributed Systems at Scale', 'Practical Agent Architecture', 'Database Internals'],
     technicalDepthScore: 92,
     notableArticles: [
@@ -193,15 +193,15 @@ export const DEFAULT_SAMPLE_ANALYSIS: CandidateAnalysis = {
     ],
   },
   twitterSignals: {
-    handle: 'shivamsingh_dev',
+    handle: 'alexchen_dev',
     publicBuildingFocus: ['Building open-source AI tooling in public', 'WebAssembly runtime performance', 'Engineering leadership & craft'],
     domainAuthority: 'High (Verified Engineering Contributor & Speaker)',
   },
   portfolioDetails: {
-    title: 'Shivam Singh — Systems & AI Engineer',
+    title: 'Alex Chen — Systems & AI Engineer',
     description: 'Portfolio showcasing distributed applications, open-source AI toolkits, and technical publications.',
     bio: 'Software engineer obsessed with latency, elegant UI ergonomics, and autonomous AI agents.',
-    url: 'https://shivamsingh.dev',
+    url: 'https://alexchen.dev',
     projects: [
       {
         name: 'OmniApply Copilot',
@@ -222,21 +222,21 @@ export const DEFAULT_SAMPLE_ANALYSIS: CandidateAnalysis = {
       title: 'omni-agent-orchestrator',
       proofSnippet: 'Over 1,200 GitHub stars with active production adoption in agentic workflows.',
       source: 'GitHub',
-      url: 'https://github.com/shivamsingh/omni-agent-orchestrator',
+      url: 'https://github.com/alexchen-dev/omni-agent-orchestrator',
     },
     {
       type: 'dsa',
       title: 'Knight Level Competitive Programmer',
       proofSnippet: 'Solved 640+ problems with 2180 contest rating (Top 1.8% worldwide).',
       source: 'LeetCode',
-      url: 'https://leetcode.com/shivamsingh/',
+      url: 'https://leetcode.com/u/alexchen_dsa',
     },
     {
       type: 'article',
       title: 'Production LLM Loops Architecture',
       proofSnippet: 'Deep dive technical analysis with 15k+ reads on distributed agent design patterns.',
       source: 'Substack',
-      url: 'https://substack.com/@shivamsingh',
+      url: 'https://systems-scale.substack.com',
     },
   ],
   keyStrengths: [

@@ -32,16 +32,16 @@ import * as MockData from '../data/mockProfiles';
 
 const FALLBACK_PROFILE_PRESETS: SampleProfilePreset[] = [
   {
-    id: 'preset-shivam',
-    name: 'Shivam Singh',
+    id: 'preset-alex',
+    name: 'Alex Chen',
     role: 'Staff Full-Stack & AI Systems Engineer',
     urls: {
-      linkedin: 'https://linkedin.com/in/shivamsingh-tech',
-      github: 'https://github.com/shivamsingh',
-      leetcode: 'https://leetcode.com/shivamsingh/',
-      substack: 'https://substack.com/@shivamsingh',
-      twitter: 'https://x.com/shivamsingh_dev',
-      portfolio: 'https://shivamsingh.dev',
+      linkedin: 'https://linkedin.com/in/alexchen-dev',
+      github: 'https://github.com/alexchen-dev',
+      leetcode: 'https://leetcode.com/u/alexchen_dsa',
+      substack: 'https://systems-scale.substack.com',
+      twitter: 'https://x.com/alexchen_dev',
+      portfolio: 'https://alexchen.dev',
       resumeText: 'Experienced Staff Full-Stack & AI Systems Engineer with 6+ years architecting high-throughput distributed systems, vector retrieval engines, agentic LLM pipelines, and production React applications. Proficient in TypeScript, React, Node.js, Go, Python, PostgreSQL, and Docker.',
     },
   },

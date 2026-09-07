@@ -32,11 +32,11 @@ export default function App() {
   // Profile URLs state - default to first rich preset
   const [urls, setUrls] = useState<ProfileUrls>(
     (MockData as any).SAMPLE_PROFILE_PRESETS?.[0]?.urls || {
-      linkedin: 'https://linkedin.com/in/shivamsingh-tech',
-      github: 'https://github.com/shivamsingh',
-      leetcode: 'https://leetcode.com/shivamsingh/',
-      substack: 'https://substack.com/@shivamsingh',
-      twitter: '',
+      linkedin: 'https://linkedin.com/in/alexchen-dev',
+      github: 'https://github.com/alexchen-dev',
+      leetcode: 'https://leetcode.com/u/alexchen_dsa',
+      substack: 'https://systems-scale.substack.com',
+      twitter: 'https://x.com/alexchen_dev',
     }
   );
   const [analysis, setAnalysis] = useState<CandidateAnalysis | null>(
@@ -81,25 +81,15 @@ export default function App() {
         }
       }
 
-      // If no valid session exists, create or log in persistent account
-      try {
-        const res = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: 'Shivam Singh',
-            email: 'singhshivam20009@gmail.com',
-            password: 'demo-password-123',
-          }),
-        });
-        const data = await res.json();
-        if (data.user && data.token) {
-          setCurrentUser(data.user);
-          localStorage.setItem('omniapply_user', JSON.stringify(data.user));
-          localStorage.setItem('omniapply_token', data.token);
+      // Check for cached user in localStorage
+      const cachedUserStr = localStorage.getItem('omniapply_user');
+      if (cachedUserStr) {
+        try {
+          const user = JSON.parse(cachedUserStr);
+          setCurrentUser(user);
+        } catch {
+          // ignore
         }
-      } catch (e) {
-        console.warn('Auto auth setup failed:', e);
       }
 
       await fetchSavedJobs();
@@ -471,7 +461,7 @@ export default function App() {
             onDeleteJob={handleDeleteJob}
             onCreateNewApplication={() => setActiveTab('studio')}
             onRefreshJobs={fetchSavedJobs}
-            candidateName={currentUser?.name || analysis?.fullName || 'Shivam Singh'}
+            candidateName={currentUser?.name || analysis?.fullName || 'Alex Chen'}
           />
         )}
 
