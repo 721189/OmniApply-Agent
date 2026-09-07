@@ -8,7 +8,7 @@
 
 export interface EmailSendResult {
   success: boolean;
-  provider: 'resend' | 'dev-console';
+  provider: 'resend' | 'dev-console' | 'none';
   messageId?: string;
   error?: string;
 }
@@ -21,6 +21,7 @@ export async function sendVerificationEmail(
   const resendApiKey = process.env.RESEND_API_KEY;
   const fromAddress = process.env.EMAIL_FROM || 'OmniApply <onboarding@resend.dev>';
   const displayName = recipientName ? recipientName.trim() : 'Candidate';
+  const isProduction = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
 
   // If Resend API key is configured, send transactional email via Resend
   if (resendApiKey) {
@@ -102,14 +103,18 @@ export async function sendVerificationEmail(
     }
   }
 
-  // Development / fallback logging mode
-  const isProduction = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
+  // Missing RESEND_API_KEY handling
   if (isProduction) {
-    console.warn(`[Email Dispatch ALERT] Running in production/serverless mode without RESEND_API_KEY. Verification code for ${toEmail} could not be delivered to mailbox.`);
-  } else {
-    console.log(`[Email Dispatch - Dev Mode] Verification code generated for ${toEmail}: [ ${verificationCode} ] (Set RESEND_API_KEY to send real transactional emails).`);
+    console.error(`[Email Dispatch FATAL] Running in production mode without RESEND_API_KEY. Verification email to ${toEmail} cannot be delivered.`);
+    return {
+      success: false,
+      provider: 'none',
+      error: 'Missing RESEND_API_KEY in production environment. Transactional email delivery failed.',
+    };
   }
 
+  // Local development / fallback simulation
+  console.log(`[Email Dispatch - Dev Mode] Verification code generated for ${toEmail}: [ ${verificationCode} ] (Set RESEND_API_KEY to send real transactional emails).`);
   return {
     success: true,
     provider: 'dev-console',

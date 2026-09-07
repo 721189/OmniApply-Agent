@@ -61,5 +61,17 @@ describe('Email Dispatching Service Tests', () => {
     expect(result.provider).toBe('resend');
     expect(result.error).toContain('403');
   });
+
+  it('should return delivery failure when RESEND_API_KEY is missing in production environment', async () => {
+    delete process.env.RESEND_API_KEY;
+    process.env.NODE_ENV = 'production';
+
+    const result = await sendVerificationEmail('candidate@example.org', '739104', 'Candidate Name');
+
+    expect(result).toBeDefined();
+    expect(result.success).toBe(false);
+    expect(result.provider).toBe('none');
+    expect(result.error).toContain('Missing RESEND_API_KEY in production environment');
+  });
 });
 

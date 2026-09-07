@@ -14,12 +14,13 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { UserAccount } from '../types';
+import { apiFetch } from '../utils/apiClient';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentUser: UserAccount | null;
-  onAuthSuccess: (user: UserAccount, token: string) => void;
+  onAuthSuccess: (user: UserAccount) => void;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
@@ -61,7 +62,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setLoading(true);
     try {
       const endpoint = mode === 'register' ? '/api/auth/register' : '/api/auth/login';
-      const res = await fetch(endpoint, {
+      const res = await apiFetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -77,7 +78,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       }
 
       if (data.user) {
-        onAuthSuccess(data.user, data.token);
+        onAuthSuccess(data.user);
         if (!data.user.isVerified) {
           setMode('verify');
           setResendCountdown(30);
@@ -106,7 +107,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/verify-email', {
+      const res = await apiFetch('/api/auth/verify-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim(), code: code.trim() }),
@@ -119,7 +120,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
       setSuccessMsg('Email verified successfully! Autonomous agent pipelines active.');
       if (data.user) {
-        onAuthSuccess(data.user, 'verified-token');
+        onAuthSuccess(data.user);
       }
       setTimeout(onClose, 1200);
     } catch (err: any) {
@@ -134,7 +135,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setError(null);
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/resend-code', {
+      const res = await apiFetch('/api/auth/resend-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim() }),

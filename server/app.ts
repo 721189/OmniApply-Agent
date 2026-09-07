@@ -129,14 +129,18 @@ export async function createApp() {
     return null;
   };
 
-  // --- 1. Health & Status ---
-  app.get('/api/health', (req: Request, res: Response) => {
-    const dbStatus = db.getDatabaseStatus();
-    res.json({ 
-      status: 'ok', 
+  // --- 1. Health & Readiness Probe (Active PostgreSQL / SQL connectivity test) ---
+  app.get('/api/health', async (req: Request, res: Response) => {
+    const dbProbe = await db.probeHealth();
+    const isProd = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
+    const isHealthy = dbProbe.status === 'healthy' || (!isProd && dbProbe.status === 'degraded');
+    const statusCode = isHealthy ? 200 : 503;
+
+    res.status(statusCode).json({ 
+      status: isHealthy ? 'ok' : 'error', 
       time: new Date().toISOString(), 
       engine: 'OmniApply AI Agent Core',
-      database: dbStatus,
+      database: dbProbe,
       workerPipeline: 'In-Process Asynchronous Pipeline Worker Engine'
     });
   });

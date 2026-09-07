@@ -77,6 +77,74 @@ if (POSTGRES_URL) {
   console.warn('[Database] Configured DATABASE_URL is not a valid PostgreSQL URI (must start with postgres:// or postgresql://). Falling back to embedded SQLite WASM storage.');
 }
 
+export interface HealthProbeResult {
+  status: 'healthy' | 'degraded' | 'unhealthy';
+  engine: 'PostgreSQL' | 'SQLite WASM';
+  durable: boolean;
+  latencyMs: number;
+  serverTime?: string;
+  error?: string;
+}
+
+export async function probeDatabaseHealth(): Promise<HealthProbeResult> {
+  const start = Date.now();
+  const isProd = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
+
+  if (pgPool) {
+    try {
+      const res = await pgPool.query('SELECT 1 as ok, NOW() as server_time;');
+      const latencyMs = Date.now() - start;
+      const serverTime = res.rows[0]?.server_time 
+        ? new Date(res.rows[0].server_time).toISOString() 
+        : new Date().toISOString();
+      return {
+        status: 'healthy',
+        engine: 'PostgreSQL',
+        durable: true,
+        latencyMs,
+        serverTime,
+      };
+    } catch (err: any) {
+      const latencyMs = Date.now() - start;
+      return {
+        status: 'unhealthy',
+        engine: 'PostgreSQL',
+        durable: false,
+        latencyMs,
+        error: err?.message || String(err),
+      };
+    }
+  }
+
+  // SQLite WASM fallback
+  try {
+    await getDb();
+    if (!dbInstance) {
+      throw new Error('SQLite database instance uninitialized');
+    }
+    const stmt = dbInstance.prepare('SELECT 1 as ok;');
+    stmt.step();
+    stmt.free();
+    const latencyMs = Date.now() - start;
+    return {
+      status: isProd ? 'degraded' : 'healthy',
+      engine: 'SQLite WASM',
+      durable: false,
+      latencyMs,
+      serverTime: new Date().toISOString(),
+      ...(isProd ? { error: 'Ephemerality advisory: Running embedded SQLite WASM in production/serverless environment without PostgreSQL connection.' } : {})
+    };
+  } catch (err: any) {
+    return {
+      status: 'unhealthy',
+      engine: 'SQLite WASM',
+      durable: false,
+      latencyMs: Date.now() - start,
+      error: err?.message || String(err),
+    };
+  }
+}
+
 export function getDatabaseStatus() {
   const isServerless = !!(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
   const isProd = process.env.NODE_ENV === 'production';
@@ -149,26 +217,29 @@ async function initSchema() {
             location VARCHAR(255),
             avatar_url TEXT,
             verification_code VARCHAR(255),
-            verification_code_expires_at VARCHAR(255),
+            verification_code_expires_at TIMESTAMPTZ,
             token_version INT NOT NULL DEFAULT 1,
             password_hash TEXT,
             password_salt TEXT,
             saved_urls TEXT,
-            created_at VARCHAR(255) NOT NULL
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
           );
-          ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_code_expires_at VARCHAR(255);
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_code_expires_at TIMESTAMPTZ;
           ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INT NOT NULL DEFAULT 1;
+
           CREATE TABLE IF NOT EXISTS user_tokens (
             token VARCHAR(512) PRIMARY KEY,
             user_id VARCHAR(255) NOT NULL,
-            created_at VARCHAR(255) NOT NULL
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
           );
+
           CREATE TABLE IF NOT EXISTS candidate_analyses (
             user_id VARCHAR(255) PRIMARY KEY,
             full_name VARCHAR(255) NOT NULL,
             data_json TEXT NOT NULL,
-            created_at VARCHAR(255) NOT NULL
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
           );
+
           CREATE TABLE IF NOT EXISTS job_applications (
             id VARCHAR(255) PRIMARY KEY,
             user_id VARCHAR(255) NOT NULL,
@@ -177,17 +248,19 @@ async function initSchema() {
             target_platform VARCHAR(255) NOT NULL,
             status VARCHAR(255) NOT NULL,
             data_json TEXT NOT NULL,
-            created_at VARCHAR(255) NOT NULL,
-            updated_at VARCHAR(255) NOT NULL
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
           );
+
           CREATE TABLE IF NOT EXISTS agent_tasks (
             task_id VARCHAR(255) PRIMARY KEY,
             type VARCHAR(255) NOT NULL,
             status VARCHAR(255) NOT NULL,
             data_json TEXT NOT NULL,
-            created_at VARCHAR(255) NOT NULL,
-            completed_at VARCHAR(255)
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            completed_at TIMESTAMPTZ
           );
+
           CREATE TABLE IF NOT EXISTS chat_messages (
             id VARCHAR(255) PRIMARY KEY,
             user_id VARCHAR(255) NOT NULL,
@@ -195,8 +268,9 @@ async function initSchema() {
             text TEXT NOT NULL,
             topic VARCHAR(255),
             referenced_job_id VARCHAR(255),
-            timestamp VARCHAR(255) NOT NULL
+            timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
           );
+
           CREATE TABLE IF NOT EXISTS activity_logs (
             id VARCHAR(255) PRIMARY KEY,
             user_id VARCHAR(255) NOT NULL,
@@ -205,13 +279,48 @@ async function initSchema() {
             details TEXT NOT NULL,
             ip_address VARCHAR(255),
             meta_json TEXT,
-            timestamp VARCHAR(255) NOT NULL
+            timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
           );
+
           CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
           CREATE INDEX IF NOT EXISTS idx_user_tokens_user_id ON user_tokens(user_id);
           CREATE INDEX IF NOT EXISTS idx_jobs_user_id ON job_applications(user_id);
           CREATE INDEX IF NOT EXISTS idx_chat_user_id ON chat_messages(user_id);
           CREATE INDEX IF NOT EXISTS idx_logs_user_id ON activity_logs(user_id);
+
+          -- Migration statements: Upgrade any previous VARCHAR timestamp columns to TIMESTAMPTZ
+          DO $$ BEGIN
+            BEGIN
+              ALTER TABLE users ALTER COLUMN created_at TYPE TIMESTAMPTZ USING created_at::timestamptz;
+            EXCEPTION WHEN others THEN NULL; END;
+            BEGIN
+              ALTER TABLE users ALTER COLUMN verification_code_expires_at TYPE TIMESTAMPTZ USING verification_code_expires_at::timestamptz;
+            EXCEPTION WHEN others THEN NULL; END;
+            BEGIN
+              ALTER TABLE user_tokens ALTER COLUMN created_at TYPE TIMESTAMPTZ USING created_at::timestamptz;
+            EXCEPTION WHEN others THEN NULL; END;
+            BEGIN
+              ALTER TABLE candidate_analyses ALTER COLUMN created_at TYPE TIMESTAMPTZ USING created_at::timestamptz;
+            EXCEPTION WHEN others THEN NULL; END;
+            BEGIN
+              ALTER TABLE job_applications ALTER COLUMN created_at TYPE TIMESTAMPTZ USING created_at::timestamptz;
+            EXCEPTION WHEN others THEN NULL; END;
+            BEGIN
+              ALTER TABLE job_applications ALTER COLUMN updated_at TYPE TIMESTAMPTZ USING updated_at::timestamptz;
+            EXCEPTION WHEN others THEN NULL; END;
+            BEGIN
+              ALTER TABLE agent_tasks ALTER COLUMN created_at TYPE TIMESTAMPTZ USING created_at::timestamptz;
+            EXCEPTION WHEN others THEN NULL; END;
+            BEGIN
+              ALTER TABLE agent_tasks ALTER COLUMN completed_at TYPE TIMESTAMPTZ USING completed_at::timestamptz;
+            EXCEPTION WHEN others THEN NULL; END;
+            BEGIN
+              ALTER TABLE chat_messages ALTER COLUMN timestamp TYPE TIMESTAMPTZ USING timestamp::timestamptz;
+            EXCEPTION WHEN others THEN NULL; END;
+            BEGIN
+              ALTER TABLE activity_logs ALTER COLUMN timestamp TYPE TIMESTAMPTZ USING timestamp::timestamptz;
+            EXCEPTION WHEN others THEN NULL; END;
+          END $$;
         `);
       } finally {
         client.release();
@@ -454,6 +563,10 @@ export class SQLiteDatabase {
 
   public getDatabaseStatus() {
     return getDatabaseStatus();
+  }
+
+  public async probeHealth(): Promise<HealthProbeResult> {
+    return probeDatabaseHealth();
   }
 
   public async insertUserRecord(u: StoredUser) {

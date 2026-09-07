@@ -59,37 +59,24 @@ export default function App() {
     setTimeout(() => setToast(null), 3500);
   };
 
-  // Initialize Auth & fetch existing applications from database
+  // Initialize Auth via authoritative HttpOnly session cookie & fetch existing applications from database
   useEffect(() => {
     const initAuthAndData = async () => {
-      const token = localStorage.getItem('omniapply_token');
-      if (token) {
-        try {
-          const res = await apiFetch('/api/auth/me');
-          if (res.ok) {
-            const data = await res.json();
-            if (data.user) {
-              setCurrentUser(data.user);
-              localStorage.setItem('omniapply_user', JSON.stringify(data.user));
-              await fetchSavedJobs();
-              await fetchTelemetryTasks();
-              return;
-            }
+      try {
+        const res = await apiFetch('/api/auth/me');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.user) {
+            setCurrentUser(data.user);
+          } else {
+            setCurrentUser(null);
           }
-        } catch (e) {
-          console.warn('Failed to verify existing session:', e);
+        } else {
+          setCurrentUser(null);
         }
-      }
-
-      // Check for cached user in localStorage
-      const cachedUserStr = localStorage.getItem('omniapply_user');
-      if (cachedUserStr) {
-        try {
-          const user = JSON.parse(cachedUserStr);
-          setCurrentUser(user);
-        } catch {
-          // ignore
-        }
+      } catch (e) {
+        console.warn('Failed to verify session cookie:', e);
+        setCurrentUser(null);
       }
 
       await fetchSavedJobs();
@@ -130,18 +117,19 @@ export default function App() {
     }
   };
 
-  const handleAuthSuccess = (user: UserAccount, token: string) => {
+  const handleAuthSuccess = (user: UserAccount) => {
     setCurrentUser(user);
-    localStorage.setItem('omniapply_user', JSON.stringify(user));
-    localStorage.setItem('omniapply_token', token);
     showToast(`Welcome, ${user.name}!`, 'success');
     fetchSavedJobs();
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await apiFetch('/api/auth/logout', { method: 'POST' });
+    } catch (e) {
+      console.warn('Logout request error:', e);
+    }
     setCurrentUser(null);
-    localStorage.removeItem('omniapply_user');
-    localStorage.removeItem('omniapply_token');
     showToast('Logged out successfully.');
     setSavedJobs([]);
   };
@@ -157,7 +145,6 @@ export default function App() {
 
     if (data.user) {
       setCurrentUser(data.user);
-      localStorage.setItem('omniapply_user', JSON.stringify(data.user));
     }
   };
 

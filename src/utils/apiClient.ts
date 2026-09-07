@@ -1,20 +1,17 @@
-export function getAuthToken(): string | null {
-  return localStorage.getItem('omniapply_token');
-}
-
-export function getAuthHeaders(customHeaders: Record<string, string> = {}): Record<string, string> {
-  const token = getAuthToken();
-  const headers: Record<string, string> = { ...customHeaders };
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-  return headers;
-}
+/**
+ * OmniApply API Client Utility
+ *
+ * Uses authoritative HttpOnly session cookies for browser authentication.
+ * All requests automatically include same-origin credentials.
+ */
 
 export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
-  const headers = getAuthHeaders((init?.headers as Record<string, string>) || {});
   return fetch(input, {
+    credentials: 'include',
     ...init,
-    headers,
+    headers: {
+      ...init?.headers,
+    },
   });
 }
+
