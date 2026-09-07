@@ -203,7 +203,7 @@ I am writing to express my enthusiastic interest in the **${jobTitle}** position
 Throughout my career, I have focused on building performant, maintainable software from end to end. My technical foundation spans modern frontend ecosystems (**React 19, TypeScript, Tailwind CSS**) through high-throughput backend services (**Node.js/Express, FastAPI, Redis, PostgreSQL**). My public engineering track record across **GitHub (@${candidate.githubMetrics.username})** and algorithmic mastery on **LeetCode (${candidate.leetcodeMetrics.totalSolved}+ solved, ${candidate.leetcodeMetrics.globalRankingTopPercent})** demonstrate my ability to deliver clean, optimized code that scales reliably.
 
 A few specific parallels between ${companyName}'s requirements and my background include:
-1. **Scalable System Architecture**: I have architected asynchronous task queues and caching layers with Redis and message brokers that reduced p99 query latency by over 40%.
+1. **Scalable System Architecture**: I have architected asynchronous task queues and caching layers with Redis and message brokers to improve system resilience and latency.
 2. **Robust Code Quality & Testing**: I champion thorough unit testing, end-to-end integration workflows, and continuous deployment pipelines to maintain high product velocity without regressions.
 3. **Engineering Communication**: Beyond writing code, my technical writings on Substack and public building on Twitter/X reflect my commitment to clear documentation, system design specifications, and collaborative team culture.
 
@@ -217,40 +217,40 @@ ${candidate.tagline}`,
       elevatorPitch: `${candidate.fullName} is an experienced Software Engineer with ${candidate.leetcodeMetrics.totalSolved}+ LeetCode solved, active open-source contributions on GitHub (@${candidate.githubMetrics.username}), and proven full-stack execution across React, Node.js, Redis, and distributed systems—ready to deliver immediate impact as ${jobTitle} at ${companyName}.`,
       platformSpecific: {
         wellfound: {
-          founderPitchNote: `Hi Team at ${companyName}, I noticed you're looking for a high-impact ${jobTitle}. With deep experience shipping full-stack products across React/Node, 500+ LeetCode problems solved, and active open-source tools on GitHub (@${candidate.githubMetrics.username}), I can jump in on Day 1 and ship scalable features with zero hand-holding. Would love to chat!`,
+          founderPitchNote: `Hi Team at ${companyName}, I noticed you're looking for a high-impact ${jobTitle}. With deep experience shipping full-stack products across modern frameworks and an active open-source footprint on GitHub (@${candidate.githubMetrics.username}), I can jump in on Day 1 and ship scalable features. Would love to chat!`,
           whyThisStartup: `I am deeply inspired by ${companyName}'s mission and product execution. Working at a high-velocity startup where engineering decisions directly shape user delight and business metrics is exactly where I thrive. I love taking complete ownership from database schema design to frontend polish.`,
           equityVsSalaryPreference: `Open to a well-balanced compensation structure consisting of a competitive base salary and meaningful equity upside aligned with ${companyName}'s long-term growth.`,
-          proudestAchievementInStartupEnvironment: `Architected an asynchronous worker queue system that processed 25M daily requests while cutting compute costs by 35% and maintaining 99.98% uptime SLA.`,
+          proudestAchievementInStartupEnvironment: `Architected and shipped critical backend infrastructure components, optimizing data fetching patterns and establishing robust error-handling boundaries to ensure system reliability.`,
           expectedSalaryRange: salaryExpectation || 'Competitive Market Rate / $135k - $165k',
         },
         linkedin: {
-          recruiterInMailSubject: `Application: ${jobTitle} | ${candidate.fullName} (GitHub @${candidate.githubMetrics.username} & LeetCode Knight)`,
-          recruiterInMailBody: `Hi Hiring Team at ${companyName},\n\nI recently came across the ${jobTitle} opening and was immediately compelled to reach out. Given ${companyName}'s focus on engineering excellence, my background aligns closely:\n\n• Full-Stack Production Readiness: Deep hands-on experience in TypeScript, React, Node.js, and PostgreSQL.\n• Algorithmic & Problem Solving Rigor: ${candidate.leetcodeMetrics.totalSolved}+ solved problems on LeetCode (${candidate.leetcodeMetrics.globalRankingTopPercent}).\n• Verifiable Code: Active open-source repositories and architectural deep dives on Substack.\n\nI would welcome a brief conversation to explore how I can add immediate value to your engineering organization.\n\nBest,\n${candidate.fullName}`,
-          connectionRequestNote: `Hi! I saw the ${jobTitle} role at ${companyName} and would love to connect. I specialize in full-stack systems (React, Node, Postgres) with 500+ LeetCode solved. Excited about what you're building!`,
+          recruiterInMailSubject: `Application: ${jobTitle} | ${candidate.fullName} (GitHub @${candidate.githubMetrics.username})`,
+          recruiterInMailBody: `Hi Hiring Team at ${companyName},\n\nI recently came across the ${jobTitle} opening and was immediately compelled to reach out. Given ${companyName}'s focus on engineering excellence, my background aligns closely:\n\n• Full-Stack Production Readiness: Deep hands-on experience in modern web architecture.\n• Algorithmic & Problem Solving Rigor: Strong foundation in data structures and optimized solutions.\n• Verifiable Code: Active open-source repositories and clean system designs.\n\nI would welcome a brief conversation to explore how I can add immediate value to your engineering organization.\n\nBest,\n${candidate.fullName}`,
+          connectionRequestNote: `Hi! I saw the ${jobTitle} role at ${companyName} and would love to connect. I specialize in full-stack systems and clean architectural patterns. Excited about what you're building!`,
           easyApplyQnA: [
-            { question: 'How many years of experience do you have with the primary tech stack?', answer: '4+ years building production full-stack systems.' },
+            { question: 'How many years of experience do you have with the primary tech stack?', answer: 'Strong production experience building full-stack systems.' },
             { question: 'Are you legally authorized to work in the role location?', answer: 'Yes, fully authorized with valid work credentials.' },
             { question: 'What is your notice period or earliest start date?', answer: noticePeriod || 'Immediately available / 2 weeks notice.' },
           ],
         },
         internshala: {
-          whyShouldYouBeHired: `I should be hired for the ${jobTitle} role at ${companyName} because I bring a unique blend of strong algorithmic foundation and real-world project development experience. With ${candidate.leetcodeMetrics.totalSolved}+ problems solved on LeetCode and multiple full-stack applications published on GitHub (@${candidate.githubMetrics.username}), I can understand codebases rapidly, write clean and bug-free code, and deliver features on time. I am enthusiastic, eager to learn from senior engineers, and ready to give 100% commitment to ${companyName}.`,
-          availabilityConfirmation: `Yes, I confirm that I am available to join immediately for the full duration of 6 months and can commit full-time hours to the role.`,
-          relevantProjectExperience: `Developed an asynchronous distributed task pipeline on GitHub using TypeScript, Redis, and React that handles real-time data streaming and caching with high reliability.`,
+          whyShouldYouBeHired: `I should be hired for the ${jobTitle} role at ${companyName} because I bring a unique blend of strong algorithmic foundation and real-world project development experience. With multiple full-stack applications published on GitHub (@${candidate.githubMetrics.username}), I can understand codebases rapidly, write clean code, and deliver features on time. I am enthusiastic, eager to learn, and ready to give full commitment to ${companyName}.`,
+          availabilityConfirmation: `Yes, I confirm that I am available to join immediately for the full duration of the internship/role and can commit the required hours.`,
+          relevantProjectExperience: `Developed a modern full-stack application leveraging scalable frameworks, focusing on modular component design, clean APIs, and robust data persistence.`,
           assignmentSubmissionCover: `Please find my detailed submission. I have adhered strictly to clean code guidelines, modular folder structure, comprehensive error handling, and responsive UI design.`,
           workPreference: 'In-Office / Remote as preferred by company',
         },
         customAts: {
           whyCompany: `${companyName} stands out due to its relentless commitment to technical excellence and solving mission-critical problems for users. The engineering culture here values craftsmanship and impact, which aligns completely with my professional values.`,
-          biggestTechnicalChallenge: `Identified and resolved a database connection pool exhaustion issue under high traffic spikes by implementing Redis distributed locks and query batching, reducing p99 latency by 45%.`,
-          leadershipOrCollaborationExample: `Collaborated closely with cross-functional designers, product managers, and QA engineers to deliver a flagship feature 2 weeks ahead of schedule through daily standups and proactive unblocking.`,
+          biggestTechnicalChallenge: `Identified and resolved complex data fetching bottlenecks by implementing strategic caching layers and optimizing query patterns to enhance overall application responsiveness.`,
+          leadershipOrCollaborationExample: `Collaborated closely with cross-functional team members to deliver a flagship feature ahead of schedule through proactive communication and robust technical planning.`,
         },
       },
       screeningQuestions: [
         {
           question: `Tell us about a time you optimized application performance or resolved a complex bug.`,
-          answer: `In a previous project, our API response time degraded during peak load. I profiled the query execution plan, discovered missing multi-column indexes on high-frequency filter keys, and introduced an in-memory Redis caching layer with a 5-minute TTL. This reduced database CPU utilization by 60% and brought p99 latency down from 1.8s to 120ms.`,
-          rationale: `Demonstrates root-cause analytical thinking, profiling skills, and measurable performance enhancement.`,
+          answer: `In a previous project, our API response time degraded during peak load. I profiled the query execution plan, discovered missing multi-column indexes on high-frequency filter keys, and introduced an in-memory caching layer. This significantly reduced database CPU utilization and improved latency.`,
+          rationale: `Demonstrates root-cause analytical thinking, profiling skills, and measurable performance enhancement without fabricating exact metrics.`,
         },
         {
           question: `Why do you want to join ${companyName} as a ${jobTitle}?`,
