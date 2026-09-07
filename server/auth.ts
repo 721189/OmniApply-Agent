@@ -43,37 +43,56 @@ export function verifyPassword(password: string, savedHash?: string, salt?: stri
 }
 
 /**
- * HMAC-SHA256 signed session tokens with expiration
+ * HMAC-SHA256 signed session tokens with expiration and token versioning
  */
-export function generateSignedToken(userId: string): { token: string; expiresAt: number } {
+export function generateSignedToken(userId: string, tokenVersion: number = 1): { token: string; expiresAt: number } {
   const secretKey = getSecretKey();
   const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
-  const payload = `${userId}:${expiresAt}`;
+  const payload = `${userId}:${tokenVersion}:${expiresAt}`;
   const signature = crypto.createHmac('sha256', secretKey).update(payload).digest('hex');
   const token = Buffer.from(`${payload}:${signature}`).toString('base64url');
   return { token, expiresAt };
 }
 
 /**
- * Verifies signed session token signature and expiration
+ * Verifies signed session token signature, expiration, and token version
  */
-export function verifySignedToken(token: string): { valid: boolean; userId?: string } {
+export function verifySignedToken(token: string): { valid: boolean; userId?: string; tokenVersion?: number } {
   try {
     const secretKey = getSecretKey();
     const decoded = Buffer.from(token, 'base64url').toString('utf-8');
     const parts = decoded.split(':');
-    if (parts.length !== 3) return { valid: false };
-    const [userId, expiresAtStr, signature] = parts;
-    const expiresAt = parseInt(expiresAtStr, 10);
-    if (isNaN(expiresAt) || Date.now() > expiresAt) {
-      return { valid: false };
+    
+    // 4-part token: userId:tokenVersion:expiresAt:signature
+    if (parts.length === 4) {
+      const [userId, tokenVersionStr, expiresAtStr, signature] = parts;
+      const expiresAt = parseInt(expiresAtStr, 10);
+      const tokenVersion = parseInt(tokenVersionStr, 10);
+      if (isNaN(expiresAt) || isNaN(tokenVersion) || Date.now() > expiresAt) {
+        return { valid: false };
+      }
+      const payload = `${userId}:${tokenVersionStr}:${expiresAtStr}`;
+      const expectedSig = crypto.createHmac('sha256', secretKey).update(payload).digest('hex');
+      const sigA = Buffer.from(signature, 'hex');
+      const sigB = Buffer.from(expectedSig, 'hex');
+      if (sigA.length === sigB.length && crypto.timingSafeEqual(sigA, sigB)) {
+        return { valid: true, userId, tokenVersion };
+      }
     }
-    const payload = `${userId}:${expiresAtStr}`;
-    const expectedSig = crypto.createHmac('sha256', secretKey).update(payload).digest('hex');
-    const sigA = Buffer.from(signature, 'hex');
-    const sigB = Buffer.from(expectedSig, 'hex');
-    if (sigA.length === sigB.length && crypto.timingSafeEqual(sigA, sigB)) {
-      return { valid: true, userId };
+    // Backward-compatible 3-part token: userId:expiresAt:signature
+    else if (parts.length === 3) {
+      const [userId, expiresAtStr, signature] = parts;
+      const expiresAt = parseInt(expiresAtStr, 10);
+      if (isNaN(expiresAt) || Date.now() > expiresAt) {
+        return { valid: false };
+      }
+      const payload = `${userId}:${expiresAtStr}`;
+      const expectedSig = crypto.createHmac('sha256', secretKey).update(payload).digest('hex');
+      const sigA = Buffer.from(signature, 'hex');
+      const sigB = Buffer.from(expectedSig, 'hex');
+      if (sigA.length === sigB.length && crypto.timingSafeEqual(sigA, sigB)) {
+        return { valid: true, userId, tokenVersion: 1 };
+      }
     }
   } catch (e) {
     return { valid: false };

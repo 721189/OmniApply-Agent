@@ -25,18 +25,43 @@ export async function createApp() {
     next();
   });
 
-  // --- In-Memory Instance Rate Limiter Middleware (60 reqs/min per IP) ---
-  // NOTE: This provides lightweight brute-force throttling per container/Node.js process instance.
-  // In horizontally scaled or serverless architectures (e.g. Vercel), each ephemeral instance
-  // isolates its own memory; for cross-instance global coordination, configure an external
-  // key-value coordinator like Upstash Redis / Redis.
+  // --- Rate Limiter Middleware (Instance sliding window + Upstash Redis coordination if configured) ---
   const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
-  app.use('/api/', (req, res, next) => {
+  app.use('/api/', async (req, res, next) => {
     const ip = req.ip || req.socket.remoteAddress || 'unknown';
     const now = Date.now();
     const windowMs = 60 * 1000;
     const limit = 60;
 
+    // 1. Check if Upstash Redis REST distributed rate limiter is configured
+    const upstashUrl = process.env.UPSTASH_REDIS_REST_URL;
+    const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+    if (upstashUrl && upstashToken) {
+      try {
+        const key = `ratelimit:${ip}:${Math.floor(now / windowMs)}`;
+        const upstashRes = await fetch(`${upstashUrl}/incr/${key}`, {
+          headers: { Authorization: `Bearer ${upstashToken}` },
+        });
+        if (upstashRes.ok) {
+          const data: any = await upstashRes.json();
+          const currentCount = Number(data.result);
+          if (currentCount === 1) {
+            // Set 60s TTL on new key
+            await fetch(`${upstashUrl}/expire/${key}/60`, {
+              headers: { Authorization: `Bearer ${upstashToken}` },
+            });
+          }
+          if (currentCount > limit) {
+            return res.status(429).json({ error: 'Too many requests. Please try again in a minute.' });
+          }
+          return next();
+        }
+      } catch (redisErr) {
+        // Fall back to local map on network error
+      }
+    }
+
+    // 2. Local in-memory sliding window rate limiter
     let record = rateLimitMap.get(ip);
     if (!record || now > record.resetAt) {
       record = { count: 1, resetAt: now + windowMs };
@@ -51,11 +76,48 @@ export async function createApp() {
     next();
   });
 
-  // Helper to extract auth user
+  // Helper to parse cookies from headers
+  const parseCookies = (req: Request): Record<string, string> => {
+    const list: Record<string, string> = {};
+    const cookieHeader = req.headers.cookie;
+    if (!cookieHeader) return list;
+    cookieHeader.split(';').forEach((cookie) => {
+      const parts = cookie.split('=');
+      const name = parts.shift()?.trim();
+      if (name) {
+        list[name] = decodeURIComponent(parts.join('=')).trim();
+      }
+    });
+    return list;
+  };
+
+  const setSessionCookie = (res: Response, token: string) => {
+    const isProd = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
+    res.setHeader('Set-Cookie', [
+      `omniapply_session=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800${isProd ? '; Secure' : ''}`
+    ]);
+  };
+
+  const clearSessionCookie = (res: Response) => {
+    const isProd = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
+    res.setHeader('Set-Cookie', [
+      `omniapply_session=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT${isProd ? '; Secure' : ''}`
+    ]);
+  };
+
+  // Helper to extract auth user from Bearer header OR HttpOnly cookie
   const getUserFromReq = async (req: Request) => {
+    let token: string | undefined;
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.split(' ')[1];
+      token = authHeader.split(' ')[1]?.trim();
+    } else {
+      const cookies = parseCookies(req);
+      if (cookies.omniapply_session) {
+        token = cookies.omniapply_session;
+      }
+    }
+    if (token) {
       const userId = await db.getUserIdFromToken(token);
       if (userId) {
         const user = await db.getUserById(userId);
@@ -86,9 +148,10 @@ export async function createApp() {
       return res.status(400).json({ error: 'Email and password are required' });
     }
     const result = await db.verifyUserCredentials(email, password);
-    if (!result.success) {
+    if (!result.success || !result.token) {
       return res.status(401).json({ error: result.error || 'Invalid credentials' });
     }
+    setSessionCookie(res, result.token);
     res.json({
       user: result.user,
       token: result.token,
@@ -109,6 +172,7 @@ export async function createApp() {
       return res.status(409).json({ error: 'An account with this email already exists. Please log in.' });
     }
     const result = await db.createUser(name || email.split('@')[0], email, password);
+    setSessionCookie(res, result.token);
     const emailDispatch = await sendVerificationEmail(email, result.code, name || email.split('@')[0]);
     res.json({
       user: result.user,
@@ -117,6 +181,20 @@ export async function createApp() {
       emailProvider: emailDispatch.provider,
       message: 'Account registered successfully! Verification code dispatched to ' + email,
     });
+  });
+
+  app.post('/api/auth/logout', async (req: Request, res: Response) => {
+    const authHeader = req.headers.authorization;
+    const cookies = parseCookies(req);
+    const token = (authHeader && authHeader.startsWith('Bearer ')) 
+      ? authHeader.split(' ')[1]?.trim() 
+      : cookies.omniapply_session;
+    
+    if (token) {
+      await db.revokeToken(token);
+    }
+    clearSessionCookie(res);
+    res.json({ success: true, message: 'Logged out successfully' });
   });
 
   app.post('/api/auth/resend-code', async (req: Request, res: Response) => {
@@ -131,13 +209,14 @@ export async function createApp() {
     const { generateSecureVerificationCode } = await import('./auth');
     const code = generateSecureVerificationCode();
     user.verificationCode = code;
+    user.verificationCodeExpiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
     await db.insertUserRecord(user);
     const emailDispatch = await sendVerificationEmail(email, code, user.name);
     res.json({ 
       success: true, 
       emailDispatched: emailDispatch.success,
       emailProvider: emailDispatch.provider,
-      message: `New verification code sent to ${email}` 
+      message: `New verification code sent to ${email} (expires in 15 minutes)` 
     });
   });
 
@@ -146,12 +225,12 @@ export async function createApp() {
     if (!email || !code) {
       return res.status(400).json({ error: 'Email and verification code are required' });
     }
-    const success = await db.verifyEmail(email, code);
-    if (success) {
+    const result = await db.verifyEmail(email, code);
+    if (result.success) {
       const user = await db.getUserByEmail(email);
       res.json({ success: true, user: user ? db.sanitizeUser(user) : null, message: 'Email verified successfully!' });
     } else {
-      res.status(400).json({ error: 'Invalid or expired verification code.' });
+      res.status(400).json({ error: result.error || 'Invalid or expired verification code.' });
     }
   });
 

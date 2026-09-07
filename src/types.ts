@@ -10,6 +10,8 @@ export interface UserAccount {
   email: string;
   isVerified: boolean;
   verificationCode?: string;
+  verificationCodeExpiresAt?: string;
+  tokenVersion?: number;
   avatarUrl?: string;
   title?: string;
   location?: string;

@@ -149,11 +149,15 @@ async function initSchema() {
             location VARCHAR(255),
             avatar_url TEXT,
             verification_code VARCHAR(255),
+            verification_code_expires_at VARCHAR(255),
+            token_version INT NOT NULL DEFAULT 1,
             password_hash TEXT,
             password_salt TEXT,
             saved_urls TEXT,
             created_at VARCHAR(255) NOT NULL
           );
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_code_expires_at VARCHAR(255);
+          ALTER TABLE users ADD COLUMN IF NOT EXISTS token_version INT NOT NULL DEFAULT 1;
           CREATE TABLE IF NOT EXISTS user_tokens (
             token VARCHAR(512) PRIMARY KEY,
             user_id VARCHAR(255) NOT NULL,
@@ -263,6 +267,8 @@ async function initSchema() {
       location TEXT,
       avatar_url TEXT,
       verification_code TEXT,
+      verification_code_expires_at TEXT,
+      token_version INTEGER NOT NULL DEFAULT 1,
       password_hash TEXT,
       password_salt TEXT,
       saved_urls TEXT,
@@ -323,6 +329,9 @@ async function initSchema() {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
   `);
+
+  try { dbInstance.run('ALTER TABLE users ADD COLUMN verification_code_expires_at TEXT;'); } catch {}
+  try { dbInstance.run('ALTER TABLE users ADD COLUMN token_version INTEGER NOT NULL DEFAULT 1;'); } catch {}
 
   // Optional open-source demo seed for local preview environments (strictly no backdoor tokens)
   const stmt = dbInstance.prepare('SELECT * FROM users WHERE email = ?;', ['alex.chen@example.org']);
@@ -385,7 +394,7 @@ async function runSql(sql: string, params: any[] = []): Promise<{ lastID: number
       if (pgSql.includes('user_tokens')) {
         pgSql += ' ON CONFLICT (token) DO UPDATE SET user_id = EXCLUDED.user_id, created_at = EXCLUDED.created_at';
       } else if (pgSql.includes('users')) {
-        pgSql += ' ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, email=EXCLUDED.email, is_verified=EXCLUDED.is_verified, title=EXCLUDED.title, location=EXCLUDED.location, avatar_url=EXCLUDED.avatar_url, verification_code=EXCLUDED.verification_code, password_hash=EXCLUDED.password_hash, password_salt=EXCLUDED.password_salt, saved_urls=EXCLUDED.saved_urls';
+        pgSql += ' ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, email=EXCLUDED.email, is_verified=EXCLUDED.is_verified, title=EXCLUDED.title, location=EXCLUDED.location, avatar_url=EXCLUDED.avatar_url, verification_code=EXCLUDED.verification_code, verification_code_expires_at=EXCLUDED.verification_code_expires_at, token_version=EXCLUDED.token_version, password_hash=EXCLUDED.password_hash, password_salt=EXCLUDED.password_salt, saved_urls=EXCLUDED.saved_urls';
       } else if (pgSql.includes('candidate_analyses')) {
         pgSql += ' ON CONFLICT (user_id) DO UPDATE SET full_name=EXCLUDED.full_name, data_json=EXCLUDED.data_json';
       } else if (pgSql.includes('job_applications')) {
@@ -449,8 +458,8 @@ export class SQLiteDatabase {
 
   public async insertUserRecord(u: StoredUser) {
     await runSql(
-      `INSERT OR REPLACE INTO users (id, name, email, is_verified, title, location, avatar_url, verification_code, password_hash, password_salt, saved_urls, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      `INSERT OR REPLACE INTO users (id, name, email, is_verified, title, location, avatar_url, verification_code, verification_code_expires_at, token_version, password_hash, password_salt, saved_urls, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       [
         u.id,
         u.name,
@@ -460,6 +469,8 @@ export class SQLiteDatabase {
         u.location || null,
         u.avatarUrl || null,
         u.verificationCode || null,
+        u.verificationCodeExpiresAt || null,
+        u.tokenVersion || 1,
         u.passwordHash || null,
         u.passwordSalt || null,
         JSON.stringify(u.savedUrls || {}),
@@ -486,36 +497,39 @@ export class SQLiteDatabase {
   async getUserIdFromToken(token: string): Promise<string | undefined> {
     if (!token) return undefined;
 
-    // 1. Cryptographic HMAC token signature verification (Stateless, fast, cold-start resilient across server restarts)
+    // 1. Cryptographic HMAC token signature & expiry verification
     const tokenVerification = verifySignedToken(token);
-    if (tokenVerification.valid && tokenVerification.userId) {
-      const user = await this.getUserById(tokenVerification.userId);
-      if (user) {
-        this.userTokensMap.set(token, user.id);
-        return user.id;
-      }
+    if (!tokenVerification.valid || !tokenVerification.userId) {
+      return undefined;
     }
 
-    // 2. Query persistent user_tokens database table
+    const user = await this.getUserById(tokenVerification.userId);
+    if (!user) return undefined;
+
+    // Check token version against user's current token version (session revocation / password change invalidation)
+    const currentVersion = user.tokenVersion || 1;
+    const tokenVersion = tokenVerification.tokenVersion || 1;
+    if (tokenVersion !== currentVersion) {
+      this.userTokensMap.delete(token);
+      return undefined;
+    }
+
+    // Check if token exists in active database tokens (if explicitly deleted/logged out)
     try {
       const tokenRow = await getSql<{ user_id: string }>(
         'SELECT user_id FROM user_tokens WHERE token = ?;',
         [token]
       );
-      if (tokenRow?.user_id) {
-        this.userTokensMap.set(token, tokenRow.user_id);
-        return tokenRow.user_id;
+      if (!tokenRow) {
+        this.userTokensMap.delete(token);
+        return undefined;
       }
     } catch (e) {
-      console.warn('[Database] Failed querying persistent token table:', e);
+      // Continue if table lookup transiently fails
     }
 
-    // 3. Fallback to in-memory map cache
-    if (this.userTokensMap.has(token)) {
-      return this.userTokensMap.get(token);
-    }
-
-    return undefined;
+    this.userTokensMap.set(token, user.id);
+    return user.id;
   }
 
   async verifyUserCredentials(email: string, password?: string): Promise<{ success: boolean; user?: UserAccount; token?: string; error?: string }> {
@@ -534,7 +548,7 @@ export class SQLiteDatabase {
       return { success: false, error: 'Invalid password.' };
     }
 
-    const { token } = generateSignedToken(user.id);
+    const { token } = generateSignedToken(user.id, user.tokenVersion || 1);
     this.userTokensMap.set(token, user.id);
     await runSql('INSERT OR REPLACE INTO user_tokens (token, user_id, created_at) VALUES (?, ?, ?);', [
       token,
@@ -548,16 +562,19 @@ export class SQLiteDatabase {
   async createUser(name: string, email: string, password?: string): Promise<{ user: UserAccount; token: string; code: string }> {
     const existing = await this.getUserByEmail(email);
     const code = generateSecureVerificationCode();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
 
     if (existing) {
       existing.verificationCode = code;
+      existing.verificationCodeExpiresAt = expiresAt;
       if (password) {
         const hashed = hashPassword(password);
         existing.passwordHash = hashed.hash;
         existing.passwordSalt = hashed.salt;
+        existing.tokenVersion = (existing.tokenVersion || 1) + 1; // invalidate prior sessions on password reset
       }
       await this.insertUserRecord(existing);
-      const { token } = generateSignedToken(existing.id);
+      const { token } = generateSignedToken(existing.id, existing.tokenVersion || 1);
       this.userTokensMap.set(token, existing.id);
       await runSql('INSERT OR REPLACE INTO user_tokens (token, user_id, created_at) VALUES (?, ?, ?);', [
         token,
@@ -575,6 +592,8 @@ export class SQLiteDatabase {
       email: email.toLowerCase(),
       isVerified: false,
       verificationCode: code,
+      verificationCodeExpiresAt: expiresAt,
+      tokenVersion: 1,
       createdAt: new Date().toISOString(),
       passwordHash: passwordRecord?.hash,
       passwordSalt: passwordRecord?.salt,
@@ -588,7 +607,7 @@ export class SQLiteDatabase {
     };
 
     await this.insertUserRecord(newUser);
-    const { token } = generateSignedToken(id);
+    const { token } = generateSignedToken(id, 1);
     this.userTokensMap.set(token, id);
     await runSql('INSERT OR REPLACE INTO user_tokens (token, user_id, created_at) VALUES (?, ?, ?);', [
       token,
@@ -599,17 +618,34 @@ export class SQLiteDatabase {
     return { user: this.sanitizeUser(newUser), token, code };
   }
 
-  async verifyEmail(email: string, code: string): Promise<boolean> {
+  async verifyEmail(email: string, code: string): Promise<{ success: boolean; error?: string }> {
     const user = await this.getUserByEmail(email);
-    if (!user) return false;
-    // Timing-safe cryptographic comparison
-    if (user.verificationCode && verifySecureCode(code, user.verificationCode)) {
-      user.isVerified = true;
-      user.verificationCode = undefined;
-      await this.insertUserRecord(user);
-      return true;
+    if (!user) {
+      return { success: false, error: 'No account found with this email address.' };
     }
-    return false;
+    if (!user.verificationCode) {
+      return { success: false, error: 'No pending verification code found for this account.' };
+    }
+    // Check 15-minute OTP expiration
+    if (user.verificationCodeExpiresAt) {
+      const expiresTime = new Date(user.verificationCodeExpiresAt).getTime();
+      if (Date.now() > expiresTime) {
+        return { 
+          success: false, 
+          error: 'Verification code has expired (15-minute validity window). Please request a new code.' 
+        };
+      }
+    }
+    // Timing-safe cryptographic comparison
+    if (!verifySecureCode(code, user.verificationCode)) {
+      return { success: false, error: 'Invalid verification code. Please check and try again.' };
+    }
+
+    user.isVerified = true;
+    user.verificationCode = undefined;
+    user.verificationCodeExpiresAt = undefined;
+    await this.insertUserRecord(user);
+    return { success: true };
   }
 
   async saveUserUrls(userId: string, urls: ProfileUrls): Promise<void> {
@@ -830,7 +866,34 @@ export class SQLiteDatabase {
     const hashed = hashPassword(newPassword);
     user.passwordHash = hashed.hash;
     user.passwordSalt = hashed.salt;
+    user.tokenVersion = (user.tokenVersion || 1) + 1; // Immediately invalidates all existing stateless HMAC sessions
     await this.insertUserRecord(user);
+
+    // Evict user sessions from DB and memory map
+    for (const [t, uid] of this.userTokensMap.entries()) {
+      if (uid === userId) this.userTokensMap.delete(t);
+    }
+    await runSql('DELETE FROM user_tokens WHERE user_id = ?;', [userId]);
+    return true;
+  }
+
+  async revokeToken(token: string): Promise<boolean> {
+    this.userTokensMap.delete(token);
+    try {
+      await runSql('DELETE FROM user_tokens WHERE token = ?;', [token]);
+    } catch (e) {}
+    return true;
+  }
+
+  async revokeAllUserSessions(userId: string): Promise<boolean> {
+    const user = await this.getUserById(userId);
+    if (!user) return false;
+    user.tokenVersion = (user.tokenVersion || 1) + 1;
+    await this.insertUserRecord(user);
+    for (const [t, uid] of this.userTokensMap.entries()) {
+      if (uid === userId) this.userTokensMap.delete(t);
+    }
+    await runSql('DELETE FROM user_tokens WHERE user_id = ?;', [userId]);
     return true;
   }
 
@@ -922,6 +985,8 @@ export class SQLiteDatabase {
       location: row.location || undefined,
       avatarUrl: row.avatar_url || undefined,
       verificationCode: row.verification_code || undefined,
+      verificationCodeExpiresAt: row.verification_code_expires_at || undefined,
+      tokenVersion: row.token_version ? Number(row.token_version) : 1,
       passwordHash: row.password_hash || undefined,
       passwordSalt: row.password_salt || undefined,
       savedUrls,
@@ -930,7 +995,7 @@ export class SQLiteDatabase {
   }
 
   public sanitizeUser(user: StoredUser): UserAccount {
-    const { passwordHash, passwordSalt, verificationCode, savedUrls, ...rest } = user;
+    const { passwordHash, passwordSalt, verificationCode, verificationCodeExpiresAt, savedUrls, ...rest } = user;
     return rest;
   }
 }
