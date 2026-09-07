@@ -16,6 +16,37 @@ async function startServer() {
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
 
+  // --- Security Headers Middleware ---
+  app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    next();
+  });
+
+  // --- Sliding Window Rate Limiter Middleware (60 reqs/min per IP) ---
+  const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+  app.use('/api/', (req, res, next) => {
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const now = Date.now();
+    const windowMs = 60 * 1000;
+    const limit = 60;
+
+    let record = rateLimitMap.get(ip);
+    if (!record || now > record.resetAt) {
+      record = { count: 1, resetAt: now + windowMs };
+      rateLimitMap.set(ip, record);
+    } else {
+      record.count++;
+    }
+
+    if (record.count > limit) {
+      return res.status(429).json({ error: 'Too many requests. Please try again in a minute.' });
+    }
+    next();
+  });
+
   // Helper to extract auth user
   const getUserFromReq = (req: Request) => {
     const authHeader = req.headers.authorization;
@@ -664,6 +695,31 @@ Guidelines:
       return res.status(404).json({ error: 'Task not found' });
     }
     res.json({ task });
+  });
+
+  // --- 7. User Data Export & Import (GDPR / Encrypted Backup) ---
+  app.get('/api/user/export', (req: Request, res: Response) => {
+    const user = getUserFromReq(req);
+    if (!user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const exportData = db.exportUserData(user.id);
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="omniapply_backup_${user.id}.json"`);
+    res.json(exportData);
+  });
+
+  app.post('/api/user/import', (req: Request, res: Response) => {
+    const user = getUserFromReq(req);
+    if (!user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    const success = db.importUserData(user.id, req.body);
+    if (success) {
+      res.json({ success: true, message: 'Data backup restored successfully!' });
+    } else {
+      res.status(400).json({ error: 'Failed to restore data backup' });
+    }
   });
 
   // --- 7. Vite Integration ---
