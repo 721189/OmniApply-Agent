@@ -96,6 +96,18 @@ export interface CandidateAnalysis {
     }>;
     detectedSkills?: string[];
   };
+  verifiedEvidence?: Array<{
+    type: 'project' | 'repo' | 'article' | 'dsa' | 'resume';
+    title: string;
+    proofSnippet: string;
+    source: string;
+    url?: string;
+  }>;
+  customFocus?: {
+    primaryTargetRole?: string;
+    toneStyle?: string;
+    pinnedHighlights?: string[];
+  };
   keyStrengths: string[];
   competitiveAdvantages: string[];
   growthAreas: string[];

@@ -220,6 +220,79 @@ Return a valid JSON object matching this schema strictly:
       ];
     }
 
+    // Compute verified evidence trail directly from scraped data
+    const verifiedEvidence: Array<{
+      type: 'project' | 'repo' | 'article' | 'dsa' | 'resume';
+      title: string;
+      proofSnippet: string;
+      source: string;
+      url?: string;
+    }> = [];
+
+    if (hasPortfolio && portfolioScrape) {
+      if (portfolioScrape.title) {
+        verifiedEvidence.push({
+          type: 'project',
+          title: `Portfolio: ${portfolioScrape.title}`,
+          proofSnippet: portfolioScrape.description || 'Verified personal website and live projects showcase',
+          source: 'Live Portfolio Web Scraper',
+          url: urls.portfolio,
+        });
+      }
+      for (const proj of portfolioScrape.projectsFound) {
+        verifiedEvidence.push({
+          type: 'project',
+          title: proj.name,
+          proofSnippet: proj.desc,
+          source: 'Portfolio Project Parser',
+          url: urls.portfolio,
+        });
+      }
+    }
+
+    if (hasGithub && ghScrape.success) {
+      for (const repo of ghScrape.featuredRepos) {
+        verifiedEvidence.push({
+          type: 'repo',
+          title: `GitHub Repo: ${repo.repoName}`,
+          proofSnippet: `${repo.description} (${repo.primaryLanguage}, ★ ${repo.stars})`,
+          source: `GitHub API (@${ghScrape.username})`,
+          url: `https://github.com/${ghScrape.username}/${repo.repoName}`,
+        });
+      }
+    }
+
+    if (hasLeetcode && lcScrape.success && lcScrape.metrics.totalSolved > 0) {
+      verifiedEvidence.push({
+        type: 'dsa',
+        title: `LeetCode Solved: ${lcScrape.metrics.totalSolved} Problems`,
+        proofSnippet: `Easy: ${lcScrape.metrics.easySolved}, Med: ${lcScrape.metrics.mediumSolved}, Hard: ${lcScrape.metrics.hardSolved} (Rating: ${lcScrape.metrics.estimatedRating})`,
+        source: `LeetCode GraphQL (@${lcScrape.username})`,
+        url: urls.leetcode,
+      });
+    }
+
+    if (hasSubstack && subScrape.success) {
+      for (const art of subScrape.notableArticles) {
+        verifiedEvidence.push({
+          type: 'article',
+          title: `Substack Article: ${art}`,
+          proofSnippet: `Technical Depth Score: ${subScrape.technicalDepthScore}/100`,
+          source: `Substack RSS (@${subScrape.handle})`,
+          url: urls.substack,
+        });
+      }
+    }
+
+    if (urls.resumeText && urls.resumeText.trim()) {
+      verifiedEvidence.push({
+        type: 'resume',
+        title: 'Verified Candidate Background / Resume Text',
+        proofSnippet: urls.resumeText.slice(0, 180),
+        source: 'Candidate Input',
+      });
+    }
+
     const result: CandidateAnalysis = {
       id: `analysis-${Date.now()}`,
       fullName: parsed.fullName || userName,
@@ -227,6 +300,7 @@ Return a valid JSON object matching this schema strictly:
       executiveSummary: parsed.executiveSummary || (hasPortfolio ? `${userName} is a software engineer specializing in modern web applications and full-stack software development. Their portfolio showcases projects built with ${portfolioScrape?.detectedSkills.slice(0, 4).join(', ') || 'modern web technologies'}.` : `${userName} is a dedicated software engineer with strong capabilities across frontend development, backend services, and clean system architecture.`),
       experienceLevel: parsed.experienceLevel || 'Software Engineer',
       skillsMatrix,
+      verifiedEvidence,
       portfolioDetails: hasPortfolio ? {
         title: portfolioScrape?.title || 'Personal Portfolio',
         description: portfolioScrape?.description || '',

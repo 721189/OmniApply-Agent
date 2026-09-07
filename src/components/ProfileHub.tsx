@@ -603,6 +603,45 @@ export const ProfileHub: React.FC<ProfileHubProps> = ({
                 </div>
               )}
 
+              {/* Verified Evidence Trail & Proof Matrix */}
+              {analysis.verifiedEvidence && analysis.verifiedEvidence.length > 0 && (
+                <div className="bg-slate-900 border border-emerald-500/20 rounded-3xl p-5 shadow-xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs">
+                      <ShieldCheck className="h-4 w-4" />
+                      <span>Verified Evidence & Proof Matrix (Zero AI Hallucination)</span>
+                    </div>
+                    <span className="text-[10px] px-2 py-0.5 bg-emerald-500/10 text-emerald-300 rounded-full font-semibold border border-emerald-500/30">
+                      {analysis.verifiedEvidence.length} Live Items Ingested
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                    {analysis.verifiedEvidence.map((item, idx) => (
+                      <div key={idx} className="p-3 bg-slate-950 rounded-2xl border border-slate-800/80 text-xs space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-slate-200 text-[11px]">{item.title}</span>
+                          <span className="text-[9px] px-1.5 py-0.5 bg-slate-900 text-slate-400 rounded border border-slate-800">
+                            {item.source}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 line-clamp-2">{item.proofSnippet}</p>
+                        {item.url && (
+                          <a
+                            href={item.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[10px] text-indigo-400 hover:underline inline-flex items-center gap-1 font-mono pt-1"
+                          >
+                            <span>Verify Source</span>
+                            <ExternalLink className="h-2.5 w-2.5" />
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Substack & Twitter Signals */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="p-4 bg-slate-900 border border-slate-800 rounded-2xl text-xs space-y-2">
