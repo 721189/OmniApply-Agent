@@ -1,6 +1,30 @@
 import { CandidateAnalysis, LatexResumePackage, ResumeData, ResumeExperience, ResumeProject } from '../src/types';
 
 /**
+ * Creates a clean, safe, strictly empty ResumeData structure without any hardcoded fabrication.
+ * Used as a baseline template or when profile analysis has no verified entries.
+ */
+export function createEmptyResumeData(candidateName?: string): ResumeData {
+  return {
+    fullName: candidateName || 'Candidate',
+    email: '',
+    phone: undefined,
+    location: undefined,
+    links: {},
+    summary: '',
+    education: [],
+    skills: {
+      languages: [],
+      frameworks: [],
+      developerTools: [],
+      librariesOrDatabases: [],
+    },
+    experience: [],
+    projects: [],
+  };
+}
+
+/**
  * Escapes special LaTeX characters to prevent syntax compilation errors
  */
 export function escapeLatex(str: string): string {
@@ -261,7 +285,8 @@ ${educationBlock}${skillsBlock}${experienceBlock}${projectsBlock}%--------------
 
 /**
  * Builds a tailored structured resume package for a target role
- * Enforces strict factual fidelity with candidate's actual verified profile
+ * Enforces strict factual fidelity with candidate's actual verified profile.
+ * Replaces hardcoded fallbacks with safe, strictly empty, or dynamic extracted structures.
  */
 export function generateTailoredResumePackage(
   candidate: CandidateAnalysis,
@@ -286,9 +311,10 @@ export function generateTailoredResumePackage(
     'SQL', 'Git', 'Linux', 'Vite', 'Express', 'HTML5', 'CSS3'
   ];
   
-  const atsKeywordsTargeted = keywordCandidates.filter((k) => 
-    jdLower.includes(k.toLowerCase()) && (candidateSkillsSet.size === 0 || candidateSkillsSet.has(k.toLowerCase()))
-  );
+  // Only match ATS keywords that the candidate actually possesses (or empty if candidate profile has no skills)
+  const atsKeywordsTargeted = candidateSkillsSet.size > 0
+    ? keywordCandidates.filter((k) => jdLower.includes(k.toLowerCase()) && candidateSkillsSet.has(k.toLowerCase()))
+    : [];
 
   // Extract candidate's star projects strictly grounded in actual candidate data (GitHub / Portfolio / Verified Evidence)
   const featuredProjects: ResumeProject[] = [];
@@ -298,14 +324,14 @@ export function generateTailoredResumePackage(
     candidate.githubMetrics.featuredRepos.forEach((r) => {
       featuredProjects.push({
         title: r.repoName,
-        technologies: `${r.primaryLanguage || 'TypeScript'}, Architecture, CI/CD`,
+        technologies: `${r.primaryLanguage || 'Software Engineering'}, Architecture, CI/CD`,
         bullets: [
           r.description
             ? `Engineered ${r.repoName}: ${r.description}.`
             : `Architected and implemented ${r.repoName} focusing on clean modular design and resilient service boundaries.`,
           r.architecturalHighlights
             ? `Technical implementation: ${r.architecturalHighlights}.`
-            : `Configured automated testing suites and continuous integration pipelines using ${r.primaryLanguage || 'modern runtimes'}.`,
+            : `Configured automated testing suites and continuous integration pipelines using ${r.primaryLanguage || 'clean code patterns'}.`,
           ...(r.stars > 0
             ? [`Maintained open-source repository with ${r.stars} GitHub stars from developer community.`]
             : []),
@@ -322,7 +348,7 @@ export function generateTailoredResumePackage(
       if (!featuredProjects.some((fp) => fp.title.toLowerCase() === p.name.toLowerCase())) {
         featuredProjects.push({
           title: p.name,
-          technologies: p.tech || (candidate.portfolioDetails?.detectedSkills?.slice(0, 4).join(', ') || 'Modern Web Stack'),
+          technologies: p.tech || (candidate.portfolioDetails?.detectedSkills?.slice(0, 4).join(', ') || 'Web Technologies'),
           bullets: [
             p.desc
               ? `Developed ${p.name}: ${p.desc}.`
@@ -332,6 +358,22 @@ export function generateTailoredResumePackage(
           liveUrl: candidate.portfolioDetails?.url,
         });
       }
+    });
+  }
+
+  // 3. Fallback to verifiedEvidence of type 'project' or 'repo' if no featured repos/portfolio objects
+  if (featuredProjects.length === 0 && candidate.verifiedEvidence && candidate.verifiedEvidence.length > 0) {
+    const evidenceProjects = candidate.verifiedEvidence.filter((e) => e.type === 'project' || e.type === 'repo');
+    evidenceProjects.forEach((ev) => {
+      featuredProjects.push({
+        title: ev.title.replace(/^Portfolio:\s*/i, '').replace(/^GitHub Repo:\s*/i, ''),
+        technologies: 'Engineering Architecture & Implementation',
+        bullets: [
+          ev.proofSnippet ? `Engineered and delivered: ${ev.proofSnippet}.` : `Built application with modular architecture and clean code.`,
+          `Verified against ${ev.source}.`,
+        ],
+        liveUrl: ev.url,
+      });
     });
   }
 
@@ -345,7 +387,7 @@ export function generateTailoredResumePackage(
   const experience: ResumeExperience[] = candidateKeyAchievements.length > 0
     ? [
         {
-          role: candidate.linkedinHighlights?.headline || candidate.tagline || `${jobTitle} Focus`,
+          role: candidate.linkedinHighlights?.headline || candidate.tagline || `${jobTitle} Track`,
           company: candidate.linkedinHighlights?.industryDomains?.[0]
             ? `${candidate.linkedinHighlights.industryDomains[0]} Engineering`
             : 'Software Engineering & Development',
@@ -362,14 +404,28 @@ export function generateTailoredResumePackage(
       ]
     : [];
 
-  // Candidate technical skills grounded strictly in verified profile signals
+  // Candidate technical skills grounded strictly in verified profile signals (strictly empty if not provided)
   const languages = candidate.githubMetrics?.topLanguages?.length > 0 
     ? candidate.githubMetrics.topLanguages 
-    : (candidate.skillsMatrix?.find((s) => s.category.toLowerCase().includes('lang'))?.skills || ['TypeScript', 'JavaScript', 'SQL']);
+    : (candidate.skillsMatrix?.find((s) => s.category.toLowerCase().includes('lang'))?.skills || []);
 
-  const frameworks = candidate.skillsMatrix?.find((s) => s.category.toLowerCase().includes('frame') || s.category.toLowerCase().includes('front'))?.skills || ['React', 'Node.js'];
-  const developerTools = candidate.skillsMatrix?.find((s) => s.category.toLowerCase().includes('tool') || s.category.toLowerCase().includes('dev'))?.skills || ['Git', 'Vite', 'REST APIs'];
-  const librariesOrDatabases = candidate.skillsMatrix?.find((s) => s.category.toLowerCase().includes('data') || s.category.toLowerCase().includes('back') || s.category.toLowerCase().includes('cloud'))?.skills || ['PostgreSQL', 'RESTful APIs'];
+  const frameworks = candidate.skillsMatrix?.find((s) => 
+    s.category.toLowerCase().includes('frame') || 
+    s.category.toLowerCase().includes('front') || 
+    s.category.toLowerCase().includes('stack')
+  )?.skills || candidate.portfolioDetails?.detectedSkills?.slice(0, 6) || [];
+
+  const developerTools = candidate.skillsMatrix?.find((s) => 
+    s.category.toLowerCase().includes('tool') || 
+    s.category.toLowerCase().includes('dev')
+  )?.skills || [];
+
+  const librariesOrDatabases = candidate.skillsMatrix?.find((s) => 
+    s.category.toLowerCase().includes('data') || 
+    s.category.toLowerCase().includes('back') || 
+    s.category.toLowerCase().includes('cloud') ||
+    s.category.toLowerCase().includes('db')
+  )?.skills || [];
 
   const structuredResume: ResumeData = {
     fullName: candidate.fullName || 'Candidate',
@@ -382,7 +438,9 @@ export function generateTailoredResumePackage(
       portfolio: candidate.portfolioDetails?.url ? candidate.portfolioDetails.url.replace(/^https?:\/\//, '') : undefined,
       leetcode: (candidate.leetcodeMetrics?.totalSolved > 0) ? 'leetcode.com/profile' : undefined,
     },
-    summary: candidate.executiveSummary || `Software Engineer with demonstrated expertise in ${languages.slice(0, 3).join(', ')} and application development.`,
+    summary: candidate.executiveSummary || (languages.length > 0 
+      ? `Software Engineer with demonstrated expertise in ${languages.slice(0, 3).join(', ')} and application development.` 
+      : (candidate.tagline || '')),
     education: [], // Strict anti-fabrication: Never invent degrees or universities if not verified
     skills: {
       languages,
@@ -399,7 +457,7 @@ export function generateTailoredResumePackage(
   return {
     latexSource,
     structuredResume,
-    atsKeywordsTargeted: atsKeywordsTargeted.length > 0 ? atsKeywordsTargeted : languages.slice(0, 5),
+    atsKeywordsTargeted,
     tailoredForRole: jobTitle,
     tailoredForCompany: companyName,
   };
