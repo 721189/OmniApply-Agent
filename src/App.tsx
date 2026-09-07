@@ -7,6 +7,7 @@ import { JobTracker } from './components/JobTracker';
 import { WorkerTelemetryModal } from './components/WorkerTelemetryModal';
 import { AuthModal } from './components/AuthModal';
 import { UserSettingsModal } from './components/UserSettingsModal';
+import { CopilotChatDrawer } from './components/CopilotChatDrawer';
 import { 
   ProfileUrls, 
   CandidateAnalysis, 
@@ -28,6 +29,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<boolean>(false);
+  const [isCopilotOpen, setIsCopilotOpen] = useState<boolean>(false);
   
   // Profile URLs state - default to first rich preset
   const [urls, setUrls] = useState<ProfileUrls>(SAMPLE_PROFILE_PRESETS[0].urls);
@@ -380,6 +382,7 @@ export default function App() {
         currentUser={currentUser}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
         onOpenSettings={() => setIsSettingsModalOpen(true)}
+        onOpenCopilot={() => setIsCopilotOpen(true)}
         onLogout={handleLogout}
         savedJobsCount={savedJobs.length}
         hasAnalysis={!!analysis}
@@ -465,6 +468,14 @@ export default function App() {
         currentUser={currentUser}
         onUpdateProfile={handleUpdateProfile}
         onLogout={handleLogout}
+      />
+
+      {/* AI Copilot & Persistent Audit Trail Drawer */}
+      <CopilotChatDrawer
+        isOpen={isCopilotOpen}
+        onClose={() => setIsCopilotOpen(false)}
+        currentUser={currentUser}
+        onShowToast={showToast}
       />
 
       {/* Floating Toast Notification */}

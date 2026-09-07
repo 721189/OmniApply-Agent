@@ -236,6 +236,7 @@ async function startServer() {
 
       analysis.userId = user?.id || 'usr-demo-001';
       db.saveAnalysis(analysis);
+      db.logActivity(analysis.userId, 'Generated Candidate Analysis', 'profile', `Analyzed profiles for ${analysis.fullName}`);
 
       task.status = 'completed';
       task.progress = 100;
@@ -716,10 +717,91 @@ Guidelines:
     }
     const success = db.importUserData(user.id, req.body);
     if (success) {
+      db.logActivity(user.id, 'Restored Data Backup', 'security', 'Restored JSON backup state');
       res.json({ success: true, message: 'Data backup restored successfully!' });
     } else {
       res.status(400).json({ error: 'Failed to restore data backup' });
     }
+  });
+
+  // --- 8. Persistent AI Copilot Conversation Chat & Audit Logs ---
+  app.get('/api/chat/history', (req: Request, res: Response) => {
+    const user = getUserFromReq(req);
+    const userId = user ? user.id : 'usr-demo-001';
+    const history = db.getChatHistory(userId);
+    res.json({ history });
+  });
+
+  app.post('/api/chat/message', async (req: Request, res: Response) => {
+    const user = getUserFromReq(req);
+    const userId = user ? user.id : 'usr-demo-001';
+    const { text, topic, referencedJobId } = req.body;
+
+    if (!text || !text.trim()) {
+      return res.status(400).json({ error: 'Message text is required' });
+    }
+
+    // Save user message to persistent DB
+    const userMsg = db.addChatMessage(userId, 'user', text, topic, referencedJobId);
+    db.logActivity(userId, 'AI Chat Message Sent', 'chat', `Topic: ${topic || 'general'}, Query: "${text.slice(0, 60)}..."`);
+
+    // Prepare context from user analysis & referenced job
+    const candidateAnalysis = db.getAnalysis(userId);
+    let jobContext = '';
+    if (referencedJobId) {
+      const job = db.getJob(referencedJobId);
+      if (job) {
+        jobContext = `REFERENCED JOB TARGET: ${job.jobTitle} at ${job.companyName}\nJOB DESCRIPTION: ${job.jobDescription.slice(0, 500)}`;
+      }
+    }
+
+    const pastHistory = db.getChatHistory(userId).slice(-8); // last 8 turns
+    const historyFormatted = pastHistory
+      .map((m) => `${m.sender.toUpperCase()}: ${m.text}`)
+      .join('\n');
+
+    const prompt = `You are OmniApply Copilot, an elite AI career strategist and job application advisor.
+Candidate Profile Context:
+- Name: ${candidateAnalysis?.fullName || 'Candidate'}
+- Title: ${candidateAnalysis?.experienceLevel || 'Software Engineer'}
+- Key Strengths: ${candidateAnalysis?.keyStrengths?.join(', ') || 'Full-Stack Software Development'}
+${jobContext}
+
+CONVERSATION HISTORY:
+${historyFormatted}
+
+Candidate Question: "${text}"
+
+Provide a concise, high-value, tactical, actionable answer for the candidate. Be encouraging, highly professional, and direct.`;
+
+    try {
+      const geminiResponse = await generateContentWithFallback({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      });
+      const replyText = geminiResponse.text || 'I am ready to help you navigate your job search and optimize your application strategy.';
+      
+      const assistantMsg = db.addChatMessage(userId, 'assistant', replyText, topic, referencedJobId);
+      res.json({ userMessage: userMsg, assistantMessage: assistantMsg });
+    } catch (err: any) {
+      const fallbackReply = `I understand you are asking about "${text.slice(0, 50)}...". I recommend highlighting your verified portfolio projects, aligning your technical stack with the job description keywords, and emphasizing measurable achievements in your outreach.`;
+      const assistantMsg = db.addChatMessage(userId, 'assistant', fallbackReply, topic, referencedJobId);
+      res.json({ userMessage: userMsg, assistantMessage: assistantMsg });
+    }
+  });
+
+  app.delete('/api/chat/history', (req: Request, res: Response) => {
+    const user = getUserFromReq(req);
+    const userId = user ? user.id : 'usr-demo-001';
+    db.clearChatHistory(userId);
+    db.logActivity(userId, 'Cleared Chat History', 'chat', 'Candidate wiped AI conversation history');
+    res.json({ success: true, message: 'Chat history cleared' });
+  });
+
+  app.get('/api/activity/logs', (req: Request, res: Response) => {
+    const user = getUserFromReq(req);
+    const userId = user ? user.id : 'usr-demo-001';
+    const logs = db.getActivityLogs(userId);
+    res.json({ logs });
   });
 
   // --- 7. Vite Integration ---

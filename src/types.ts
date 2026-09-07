@@ -369,3 +369,24 @@ export interface AgentTask {
   result?: any;
   error?: string;
 }
+
+export interface ChatMessage {
+  id: string;
+  userId: string;
+  sender: 'user' | 'assistant';
+  text: string;
+  timestamp: string;
+  topic?: 'interview' | 'resume' | 'salary' | 'general' | 'application';
+  referencedJobId?: string;
+}
+
+export interface ActivityLog {
+  id: string;
+  userId: string;
+  action: string;
+  category: 'profile' | 'application' | 'security' | 'negotiation' | 'chat';
+  details: string;
+  timestamp: string;
+  ipAddress?: string;
+  meta?: Record<string, any>;
+}

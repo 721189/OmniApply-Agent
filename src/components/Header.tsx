@@ -25,6 +25,7 @@ interface HeaderProps {
   onOpenAuthModal?: () => void;
   onOpenAuth?: () => void;
   onOpenSettings?: () => void;
+  onOpenCopilot?: () => void;
   onLogout: () => void;
   savedJobsCount: number;
   hasAnalysis?: boolean;
@@ -40,6 +41,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAuthModal,
   onOpenAuth,
   onOpenSettings,
+  onOpenCopilot,
   onLogout,
   savedJobsCount,
   hasAnalysis,
@@ -160,7 +162,18 @@ export const Header: React.FC<HeaderProps> = ({
           </nav>
 
           {/* User Status / Auth Controls */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
+            {onOpenCopilot && (
+              <button
+                onClick={onOpenCopilot}
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-semibold transition-all shadow-sm"
+                title="Open AI Copilot Chat & Activity Audit Trail"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-indigo-400 animate-pulse" />
+                <span>AI Copilot</span>
+              </button>
+            )}
+
             {effectiveUser ? (
               <div className="flex items-center gap-2.5 bg-slate-950/80 border border-slate-800 px-3 py-1.5 rounded-xl">
                 <button

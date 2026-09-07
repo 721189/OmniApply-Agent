@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { UserAccount, CandidateAnalysis, JobApplication, AgentTask, ProfileUrls, ApplicationPackage } from '../src/types';
+import { UserAccount, CandidateAnalysis, JobApplication, AgentTask, ProfileUrls, ApplicationPackage, ChatMessage, ActivityLog } from '../src/types';
 import { hashPassword, verifyPassword, generateSignedToken, verifySignedToken } from './auth';
 
 export interface StoredUser extends UserAccount {
@@ -19,6 +19,8 @@ class DatabaseStore {
   private analyses: Map<string, CandidateAnalysis> = new Map(); // userId or 'default' -> analysis
   private jobs: Map<string, JobApplication> = new Map(); // jobId -> JobApplication
   private tasks: Map<string, AgentTask> = new Map(); // taskId -> AgentTask
+  private chatMessages: Map<string, ChatMessage[]> = new Map(); // userId -> ChatMessage[]
+  private activityLogs: Map<string, ActivityLog[]> = new Map(); // userId -> ActivityLog[]
 
   constructor() {
     this.ensureDirectoryExists();
@@ -93,6 +95,16 @@ class DatabaseStore {
             this.tasks.set(t.taskId, t);
           }
         }
+        if (data.chatMessages && typeof data.chatMessages === 'object') {
+          for (const [uid, msgs] of Object.entries(data.chatMessages)) {
+            if (Array.isArray(msgs)) this.chatMessages.set(uid, msgs as ChatMessage[]);
+          }
+        }
+        if (data.activityLogs && typeof data.activityLogs === 'object') {
+          for (const [uid, logs] of Object.entries(data.activityLogs)) {
+            if (Array.isArray(logs)) this.activityLogs.set(uid, logs as ActivityLog[]);
+          }
+        }
         console.log(`[DatabaseStore] Successfully restored database state from ${DB_FILE_PATH}`);
       }
     } catch (err) {
@@ -103,12 +115,23 @@ class DatabaseStore {
   private persistToDisk(): void {
     try {
       this.ensureDirectoryExists();
+      const chatObject: Record<string, ChatMessage[]> = {};
+      for (const [uid, msgs] of this.chatMessages.entries()) {
+        chatObject[uid] = msgs;
+      }
+      const activityObject: Record<string, ActivityLog[]> = {};
+      for (const [uid, logs] of this.activityLogs.entries()) {
+        activityObject[uid] = logs;
+      }
+
       const payload = {
         savedAt: new Date().toISOString(),
         users: Array.from(new Set(this.users.values())),
         analyses: Array.from(new Set(this.analyses.values())),
         jobs: Array.from(this.jobs.values()),
         tasks: Array.from(this.tasks.values()),
+        chatMessages: chatObject,
+        activityLogs: activityObject,
       };
       fs.writeFileSync(DB_FILE_PATH, JSON.stringify(payload, null, 2), 'utf-8');
     } catch (err) {
@@ -321,6 +344,8 @@ class DatabaseStore {
     const analysis = this.getAnalysis(userId);
     const jobs = this.getAllJobs(userId);
     const tasks = Array.from(this.tasks.values()).filter((t) => t.taskId.includes(userId));
+    const chatHistory = this.getChatHistory(userId);
+    const activityLogs = this.getActivityLogs(userId);
 
     return {
       exportedAt: new Date().toISOString(),
@@ -330,6 +355,8 @@ class DatabaseStore {
       aggregatedCandidateProfile: analysis || null,
       jobApplicationRecords: jobs,
       aiTaskHistory: tasks,
+      chatHistory,
+      activityLogs,
     };
   }
 
@@ -345,6 +372,12 @@ class DatabaseStore {
       }
       if (payload.savedPlatformUrls) {
         this.saveUserUrls(userId, payload.savedPlatformUrls);
+      }
+      if (Array.isArray(payload.chatHistory)) {
+        this.chatMessages.set(userId, payload.chatHistory);
+      }
+      if (Array.isArray(payload.activityLogs)) {
+        this.activityLogs.set(userId, payload.activityLogs);
       }
       this.persistToDisk();
       return true;
@@ -384,6 +417,73 @@ class DatabaseStore {
     return Array.from(this.tasks.values()).sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
+  }
+
+  // --- Chat Conversation History Store ---
+  getChatHistory(userId: string): ChatMessage[] {
+    return this.chatMessages.get(userId) || [];
+  }
+
+  addChatMessage(
+    userId: string,
+    sender: 'user' | 'assistant',
+    text: string,
+    topic?: ChatMessage['topic'],
+    referencedJobId?: string
+  ): ChatMessage {
+    const list = this.getChatHistory(userId);
+    const msg: ChatMessage = {
+      id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      userId,
+      sender,
+      text,
+      timestamp: new Date().toISOString(),
+      topic,
+      referencedJobId,
+    };
+    list.push(msg);
+    this.chatMessages.set(userId, list);
+    this.persistToDisk();
+    return msg;
+  }
+
+  clearChatHistory(userId: string): void {
+    this.chatMessages.delete(userId);
+    this.persistToDisk();
+  }
+
+  // --- Audit & User Activity Logs ---
+  getActivityLogs(userId: string): ActivityLog[] {
+    return (this.activityLogs.get(userId) || []).sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+  }
+
+  logActivity(
+    userId: string,
+    action: string,
+    category: ActivityLog['category'],
+    details: string,
+    ipAddress?: string,
+    meta?: Record<string, any>
+  ): ActivityLog {
+    const logs = this.activityLogs.get(userId) || [];
+    const log: ActivityLog = {
+      id: `log-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      userId,
+      action,
+      category,
+      details,
+      timestamp: new Date().toISOString(),
+      ipAddress,
+      meta,
+    };
+    logs.unshift(log);
+    // Keep last 200 logs per user
+    if (logs.length > 200) logs.pop();
+    this.activityLogs.set(userId, logs);
+    this.persistToDisk();
+    return log;
   }
 
   private sanitizeUser(user: StoredUser): UserAccount {
