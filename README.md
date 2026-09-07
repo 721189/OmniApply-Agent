@@ -246,9 +246,11 @@ Contributions are welcome! Please review [CONTRIBUTING.md](./CONTRIBUTING.md) fo
 
 ## 💡 Honest Disclosures & Ethics
 
-1. **Human-in-the-Loop Philosophy**: OmniApply AI generates tailored materials grounded in your actual public work, but **you should always review every cover note, screening answer, and salary figure** prior to final submission.
-2. **Platform Terms Compliance**: OmniApply AI functions as a drafting and preparation engine. It does not perform unattended, automated browser clicks on job boards, ensuring account safety.
-3. **Data Privacy**: Your profile signals and applications reside in your active session. You can export or delete your data at any time via **Settings → Data Privacy**.
+1. **Strict Anti-Fabrication Engine**: OmniApply AI is explicitly programmed *not* to hallucinate metrics, jobs, or skills. The quality and depth of the generated application package are entirely dependent on the richness of your provided public profiles. If your GitHub, LeetCode, or Portfolio lacks detail, the system will output a lighter, strictly verified resume rather than inventing "fake" achievements.
+2. **Human-in-the-Loop Philosophy**: While the AI generates highly tailored materials grounded in your actual public work, **you must always review every cover note, screening answer, and salary figure** prior to final submission.
+3. **Scraper Limitations**: The platform uses live scrapers (e.g., GitHub API, Substack RSS) which are subject to external rate limits and structural changes. If a scrape fails, the system safely falls back to a minimal baseline rather than guessing your background.
+4. **Platform Terms Compliance**: OmniApply AI functions as a drafting and preparation engine. It does not perform unattended, automated browser clicks on job boards, ensuring account safety and alignment with platform terms of service.
+5. **Data Privacy**: Your profile signals and applications reside in your active session. You can export or delete your data at any time via **Settings → Data Privacy**.
 
 ---
 
