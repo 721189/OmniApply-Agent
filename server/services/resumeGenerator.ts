@@ -1,4 +1,4 @@
-import { CandidateAnalysis, LatexResumePackage, ResumeData, ResumeExperience, ResumeProject } from '../src/types';
+import { CandidateAnalysis, LatexResumePackage, ResumeData, ResumeExperience, ResumeProject } from '../../src/types';
 
 /**
  * Creates a clean, safe, strictly empty ResumeData structure without any hardcoded fabrication.

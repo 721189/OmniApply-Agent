@@ -1,4 +1,4 @@
-import { CandidateAnalysis, FollowUpEmail, FollowUpSequence } from '../src/types';
+import { CandidateAnalysis, FollowUpEmail, FollowUpSequence } from '../../src/types';
 
 /**
  * Generates an automated 4-stage recruiter & founder follow-up drip sequence

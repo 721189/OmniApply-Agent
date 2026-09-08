@@ -1,5 +1,5 @@
 import { generateContentWithFallback } from './gemini';
-import { ProfileUrls, CandidateAnalysis, AgentTaskLog } from '../src/types';
+import { ProfileUrls, CandidateAnalysis, AgentTaskLog } from '../../src/types';
 import { 
   scrapeGitHubProfile, 
   scrapeLeetCodeProfile, 

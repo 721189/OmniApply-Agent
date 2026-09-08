@@ -1,4 +1,4 @@
-import { GithubHighlight, LeetCodeMetrics, LiveScrapeResult, ProfileUrls } from '../src/types';
+import { GithubHighlight, LeetCodeMetrics, LiveScrapeResult, ProfileUrls } from '../../src/types';
 
 export interface PortfolioScrapeResult {
   success: boolean;

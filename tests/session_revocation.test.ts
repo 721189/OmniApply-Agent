@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { db } from '../server/sqlite_db';
-import { generateSignedToken } from '../server/auth';
+import { generateSignedToken } from '../server/services/auth';
 
 describe('Session Revocation & Versioning Integration Tests', () => {
   const sessionEmail = `session-${Date.now()}@example.org`;

@@ -1,5 +1,5 @@
 import { generateContentWithFallback } from './gemini';
-import { CandidateAnalysis, ApplicationPackage, PlatformType, AgentTaskLog } from '../src/types';
+import { CandidateAnalysis, ApplicationPackage, PlatformType, AgentTaskLog } from '../../src/types';
 import { generateTailoredResumePackage } from './resumeGenerator';
 import { generateFollowUpSequence } from './followupGenerator';
 
