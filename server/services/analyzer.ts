@@ -150,18 +150,18 @@ Return a valid JSON object matching this schema strictly:
   },
   "githubMetrics": {
     "username": "${ghHandle}",
-    "totalRepos": ${hasGithub ? (ghScrape.totalRepos || 12) : 0},
-    "topLanguages": ${JSON.stringify(hasGithub ? (ghScrape.topLanguages.length ? ghScrape.topLanguages : ['JavaScript', 'TypeScript']) : [])},
+    "totalRepos": ${hasGithub && ghScrape.totalRepos ? ghScrape.totalRepos : 0},
+    "topLanguages": ${JSON.stringify(hasGithub && ghScrape.topLanguages && ghScrape.topLanguages.length ? ghScrape.topLanguages : [])},
     "featuredRepos": ${JSON.stringify(hasGithub ? ghScrape.featuredRepos : [])},
-    "commitFrequency": "${hasGithub ? 'Active Contributor' : 'Not Provided'}",
-    "codeQualityRating": ${hasGithub ? 90 : 0}
+    "commitFrequency": "${hasGithub && ghScrape.success ? 'Active Contributor' : 'Not Provided'}",
+    "codeQualityRating": 0
   },
   "leetcodeMetrics": {
-    "totalSolved": ${hasLeetcode ? (lcScrape.metrics.totalSolved || 150) : 0},
-    "easySolved": ${hasLeetcode ? (lcScrape.metrics.easySolved || 60) : 0},
-    "mediumSolved": ${hasLeetcode ? (lcScrape.metrics.mediumSolved || 75) : 0},
-    "hardSolved": ${hasLeetcode ? (lcScrape.metrics.hardSolved || 15) : 0},
-    "estimatedRating": ${hasLeetcode ? (lcScrape.metrics.estimatedRating || 1700) : 0},
+    "totalSolved": ${hasLeetcode && lcScrape.metrics && lcScrape.metrics.totalSolved ? lcScrape.metrics.totalSolved : 0},
+    "easySolved": ${hasLeetcode && lcScrape.metrics && lcScrape.metrics.easySolved ? lcScrape.metrics.easySolved : 0},
+    "mediumSolved": ${hasLeetcode && lcScrape.metrics && lcScrape.metrics.mediumSolved ? lcScrape.metrics.mediumSolved : 0},
+    "hardSolved": ${hasLeetcode && lcScrape.metrics && lcScrape.metrics.hardSolved ? lcScrape.metrics.hardSolved : 0},
+    "estimatedRating": ${hasLeetcode && lcScrape.metrics && lcScrape.metrics.estimatedRating ? lcScrape.metrics.estimatedRating : 0},
     "topTopics": ${JSON.stringify(hasLeetcode ? lcScrape.metrics.topTopics : [])},
     "globalRankingTopPercent": "${hasLeetcode ? lcScrape.metrics.globalRankingTopPercent : 'Not Provided / Unlinked'}"
   },
