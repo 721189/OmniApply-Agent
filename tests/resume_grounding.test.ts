@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { generateTailoredResumePackage, buildLatexResumeDocument, escapeLatex } from '../server/resumeGenerator';
-import { generateFollowUpSequence } from '../server/followupGenerator';
+import { generateTailoredResumePackage, buildLatexResumeDocument, escapeLatex } from '../server/services/resumeGenerator';
+import { generateFollowUpSequence } from '../server/services/followupGenerator';
 import { CandidateAnalysis, ResumeData } from '../src/types';
 
 describe('Resume Generator Factual Grounding & Anti-Fabrication Tests', () => {

@@ -198,14 +198,14 @@ Return a strictly valid JSON object with the following schema:
       followUpSequence,
       coverLetter: `Dear Hiring Team at **${companyName}**,
 
-I am writing to express my enthusiastic interest in the **${jobTitle}** position. Having closely followed ${companyName}'s innovation in the industry, I am excited about the opportunity to contribute my full-stack engineering expertise, distributed systems knowledge, and relentless problem-solving drive to your team.
+I am writing to express my enthusiastic interest in the **${jobTitle}** position. Having closely followed ${companyName}'s innovation in the industry, I am excited about the opportunity to contribute my full-stack engineering expertise and relentless problem-solving drive to your team.
 
-Throughout my career, I have focused on building performant, maintainable software from end to end. My technical foundation spans modern frontend ecosystems (**React 19, TypeScript, Tailwind CSS**) through high-throughput backend services (**Node.js/Express, FastAPI, Redis, PostgreSQL**). My public engineering track record across **GitHub (@${candidate.githubMetrics.username})** and algorithmic mastery on **LeetCode (${candidate.leetcodeMetrics.totalSolved}+ solved, ${candidate.leetcodeMetrics.globalRankingTopPercent})** demonstrate my ability to deliver clean, optimized code that scales reliably.
+Throughout my career, I have focused on building performant, maintainable software from end to end. My technical foundation spans modern frontend ecosystems through high-throughput backend services. My public engineering track record across **GitHub (@${candidate.githubMetrics.username || 'Not Provided'})** demonstrates my ability to deliver clean, optimized code that scales reliably.
 
 A few specific parallels between ${companyName}'s requirements and my background include:
-1. **Scalable System Architecture**: I have architected asynchronous task queues and caching layers with Redis and message brokers to improve system resilience and latency.
+1. **Scalable System Architecture**: I have architected resilient web services and focused on optimizing latency.
 2. **Robust Code Quality & Testing**: I champion thorough unit testing, end-to-end integration workflows, and continuous deployment pipelines to maintain high product velocity without regressions.
-3. **Engineering Communication**: Beyond writing code, my technical writings on Substack and public building on Twitter/X reflect my commitment to clear documentation, system design specifications, and collaborative team culture.
+3. **Engineering Communication**: Beyond writing code, my commitment to clear documentation and collaborative team culture ensures I can integrate seamlessly into your engineering workflows.
 
 I would love the opportunity to discuss how my skill set, startup agility, and technical rigor will help ${companyName} achieve its next milestones for the ${jobTitle} role.
 
@@ -214,27 +214,27 @@ Thank you for your time and consideration.
 Warm regards,  
 **${candidate.fullName}**  
 ${candidate.tagline}`,
-      elevatorPitch: `${candidate.fullName} is an experienced Software Engineer with ${candidate.leetcodeMetrics.totalSolved}+ LeetCode solved, active open-source contributions on GitHub (@${candidate.githubMetrics.username}), and proven full-stack execution across React, Node.js, Redis, and distributed systems—ready to deliver immediate impact as ${jobTitle} at ${companyName}.`,
+      elevatorPitch: `${candidate.fullName} is an experienced Software Engineer with active open-source contributions on GitHub (@${candidate.githubMetrics.username || 'Not Provided'}), ready to deliver immediate impact as ${jobTitle} at ${companyName}.`,
       platformSpecific: {
         wellfound: {
-          founderPitchNote: `Hi Team at ${companyName}, I noticed you're looking for a high-impact ${jobTitle}. With deep experience shipping full-stack products across modern frameworks and an active open-source footprint on GitHub (@${candidate.githubMetrics.username}), I can jump in on Day 1 and ship scalable features. Would love to chat!`,
+          founderPitchNote: `Hi Team at ${companyName}, I noticed you're looking for a high-impact ${jobTitle}. With deep experience shipping full-stack products across modern frameworks and an active open-source footprint on GitHub (@${candidate.githubMetrics.username || 'Not Provided'}), I can jump in on Day 1 and ship scalable features. Would love to chat!`,
           whyThisStartup: `I am deeply inspired by ${companyName}'s mission and product execution. Working at a high-velocity startup where engineering decisions directly shape user delight and business metrics is exactly where I thrive. I love taking complete ownership from database schema design to frontend polish.`,
           equityVsSalaryPreference: `Open to a well-balanced compensation structure consisting of a competitive base salary and meaningful equity upside aligned with ${companyName}'s long-term growth.`,
           proudestAchievementInStartupEnvironment: `Architected and shipped critical backend infrastructure components, optimizing data fetching patterns and establishing robust error-handling boundaries to ensure system reliability.`,
-          expectedSalaryRange: salaryExpectation || 'Competitive Market Rate / $135k - $165k',
+          expectedSalaryRange: salaryExpectation || 'NOT PROVIDED / REQUIRES USER INPUT',
         },
         linkedin: {
-          recruiterInMailSubject: `Application: ${jobTitle} | ${candidate.fullName} (GitHub @${candidate.githubMetrics.username})`,
+          recruiterInMailSubject: `Application: ${jobTitle} | ${candidate.fullName} (GitHub @${candidate.githubMetrics.username || 'Not Provided'})`,
           recruiterInMailBody: `Hi Hiring Team at ${companyName},\n\nI recently came across the ${jobTitle} opening and was immediately compelled to reach out. Given ${companyName}'s focus on engineering excellence, my background aligns closely:\n\n• Full-Stack Production Readiness: Deep hands-on experience in modern web architecture.\n• Algorithmic & Problem Solving Rigor: Strong foundation in data structures and optimized solutions.\n• Verifiable Code: Active open-source repositories and clean system designs.\n\nI would welcome a brief conversation to explore how I can add immediate value to your engineering organization.\n\nBest,\n${candidate.fullName}`,
           connectionRequestNote: `Hi! I saw the ${jobTitle} role at ${companyName} and would love to connect. I specialize in full-stack systems and clean architectural patterns. Excited about what you're building!`,
           easyApplyQnA: [
             { question: 'How many years of experience do you have with the primary tech stack?', answer: 'I have hands-on experience building full-stack applications as evidenced by my GitHub portfolio.' },
             { question: 'Are you legally authorized to work in the role location?', answer: 'I am happy to discuss my work authorization status and requirements during the interview.' },
-            { question: 'What is your notice period or earliest start date?', answer: noticePeriod || 'Available to discuss start dates and notice periods.' },
+            { question: 'What is your notice period or earliest start date?', answer: noticePeriod || 'REQUIRES USER INPUT / Available to discuss start dates.' },
           ],
         },
         internshala: {
-          whyShouldYouBeHired: `I should be hired for the ${jobTitle} role at ${companyName} because I bring a unique blend of strong algorithmic foundation and real-world project development experience. With multiple full-stack applications published on GitHub (@${candidate.githubMetrics.username}), I can understand codebases rapidly, write clean code, and deliver features on time. I am enthusiastic, eager to learn, and ready to give full commitment to ${companyName}.`,
+          whyShouldYouBeHired: `I should be hired for the ${jobTitle} role at ${companyName} because I bring a unique blend of strong algorithmic foundation and real-world project development experience. With multiple full-stack applications published on GitHub (@${candidate.githubMetrics.username || 'Not Provided'}), I can understand codebases rapidly, write clean code, and deliver features on time. I am enthusiastic, eager to learn, and ready to give full commitment to ${companyName}.`,
           availabilityConfirmation: `Available to discuss start date and duration based on company requirements.`,
           relevantProjectExperience: `Developed a modern full-stack application leveraging scalable frameworks, focusing on modular component design, clean APIs, and robust data persistence.`,
           assignmentSubmissionCover: `Please find my detailed submission. I have adhered strictly to clean code guidelines, modular folder structure, comprehensive error handling, and responsive UI design.`,
@@ -264,14 +264,14 @@ ${candidate.tagline}`,
         },
         {
           question: `What are your salary expectations and availability for this role?`,
-          answer: `My expectation is ${salaryExpectation || 'competitive with market benchmarks for this level'}. I am available to start ${noticePeriod || 'within 2 weeks'}.`,
+          answer: `My expectation is ${salaryExpectation || 'REQUIRES USER INPUT / market competitive'}. I am available to start ${noticePeriod || 'REQUIRES USER INPUT / to be discussed'}.`,
           rationale: `Transparent, professional, and clear expectations for the recruiter.`,
         },
       ],
       atsReport: {
-        score: 95,
-        matchedKeywords: ['TypeScript', 'React', 'Node.js', 'PostgreSQL', 'Redis', 'REST API', 'Data Structures', 'CI/CD', 'Git', 'Agile'],
-        missingKeywords: ['Microservices', 'GraphQL', 'AWS S3'],
+        score: 0,
+        matchedKeywords: [],
+        missingKeywords: [],
         strengths: [
           'High match on primary language and framework stacks.',
           'Strong algorithmic problem solving background guarantees high technical interview pass rate.',
@@ -279,25 +279,18 @@ ${candidate.tagline}`,
         ],
         recommendations: [
           'Emphasize your caching and database query optimization wins in the first round conversation.',
-          'Reference your Substack publication when discussing system architecture.',
         ],
-        executiveAlignmentSummary: `Candidate demonstrates 95% alignment with ${jobTitle} requirements at ${companyName}, positioning them in the top tier of applicants.`,
+        executiveAlignmentSummary: `Candidate demonstrates strong potential alignment with ${jobTitle} requirements at ${companyName}.`,
       },
       keyProjectsShowcase: [
         {
-          projectName: 'High-Throughput Asynchronous Task Engine',
-          relevanceToRole: `Directly demonstrates mastery of event-driven backends, worker pools, and low-latency APIs.`,
-          sourcePlatform: `GitHub (@${candidate.githubMetrics.username})`,
-          summary: `Distributed queue architecture with Redis streams, worker pools, and automated retry mechanics.`,
-        },
-        {
-          projectName: 'Algorithmic DSA Mastery Portfolio',
-          relevanceToRole: `Confirms strong problem solving under interview conditions and optimized runtime complexity in production.`,
-          sourcePlatform: `LeetCode (${candidate.leetcodeMetrics.totalSolved} solved)`,
-          summary: `Knight status on LeetCode with hundreds of Medium and Hard problems solved across Graphs, DP, and Trees.`,
-        },
+          projectName: 'Modern Web Architecture Portfolio',
+          relevanceToRole: `Demonstrates mastery of modern frameworks and deployment practices.`,
+          sourcePlatform: `GitHub (@${candidate.githubMetrics.username || 'Not Provided'})`,
+          summary: `Clean modular architecture with scalable backend APIs and responsive user interfaces.`,
+        }
       ],
-      tailoredBio: `Full-Stack Software Engineer with ${candidate.leetcodeMetrics.totalSolved}+ LeetCode solved, active open-source projects on GitHub, and production experience building scalable web applications.`,
+      tailoredBio: `Full-Stack Software Engineer with active open-source projects on GitHub and production experience building scalable web applications.`,
     };
 
     emit(100, 'Application Ready', `Application package created successfully!`, 'success');

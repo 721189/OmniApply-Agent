@@ -29,7 +29,7 @@ import {
   verifySignedToken,
   generateSecureVerificationCode,
   verifySecureCode
-} from './auth';
+} from './services/auth';
 
 export interface StoredUser extends UserAccount {
   passwordHash?: string;

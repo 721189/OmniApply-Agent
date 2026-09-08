@@ -2,13 +2,13 @@ import express, { Request, Response } from 'express';
 import path from 'path';
 import { randomUUID } from 'crypto';
 import { db } from './db';
-import { analyzeCandidateProfiles } from './analyzer';
-import { generateApplicationPackage } from './appGenerator';
-import { scrapeGitHubProfile, scrapeLeetCodeProfile, scrapeSubstackProfile } from './scrapers';
-import { generateTailoredResumePackage, buildLatexResumeDocument } from './resumeGenerator';
-import { generateFollowUpSequence, generateIcsCalendarFile } from './followupGenerator';
-import { generateContentWithFallback } from './gemini';
-import { sendVerificationEmail } from './email';
+import { analyzeCandidateProfiles } from './services/analyzer';
+import { generateApplicationPackage } from './services/appGenerator';
+import { scrapeGitHubProfile, scrapeLeetCodeProfile, scrapeSubstackProfile } from './services/scrapers';
+import { generateTailoredResumePackage, buildLatexResumeDocument } from './services/resumeGenerator';
+import { generateFollowUpSequence, generateIcsCalendarFile } from './services/followupGenerator';
+import { generateContentWithFallback } from './services/gemini';
+import { sendVerificationEmail } from './services/email';
 import { ProfileUrls, PlatformType, JobApplication, AgentTask } from '../src/types';
 
 export async function createApp() {
@@ -279,7 +279,7 @@ export async function createApp() {
     if (!user) {
       return res.json({ success: true, message: `If that account exists, a verification code was sent to ${email}` });
     }
-    const { generateSecureVerificationCode } = await import('./auth');
+    const { generateSecureVerificationCode } = await import('./services/auth');
     const code = generateSecureVerificationCode();
     user.verificationCode = code;
     user.verificationCodeExpiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
@@ -676,7 +676,7 @@ Guidelines:
           const sentences = text.split('. ');
           fallback = sentences.slice(0, Math.max(2, Math.floor(sentences.length * 0.75))).join('. ') + (text.endsWith('.') ? '.' : '');
         } else if (lowerInst.includes('metric') || lowerInst.includes('data')) {
-          fallback = text + '\n\nKey Measurable Impact: Delivered 45% reduction in latency and maintained 99.99% uptime across production workloads.';
+          fallback = text + '\n\n[Add concrete metrics here based on your verified experience]';
         } else if (lowerInst.includes('leader') || lowerInst.includes('lead')) {
           fallback = text.replace(/I worked on/gi, 'I architected and led the development of')
                          .replace(/I helped/gi, 'I spearheaded cross-functional efforts for');
@@ -735,19 +735,19 @@ Guidelines:
           id: `cand-${user.id}`,
           userId: user.id,
           fullName: user.name || 'Candidate',
-          tagline: user.title || 'Software Engineer',
+          tagline: 'Software Engineer',
           executiveSummary: 'Software Engineer specializing in modern web and cloud architectures.',
-          experienceLevel: 'Mid-Senior',
+          experienceLevel: 'Software Engineer',
           skillsMatrix: [],
-          githubMetrics: { username: 'developer', totalRepos: 24, topLanguages: ['TypeScript', 'Python'], featuredRepos: [], commitFrequency: 'High', codeQualityRating: 94 },
-          leetcodeMetrics: { totalSolved: 480, easySolved: 160, mediumSolved: 260, hardSolved: 60, estimatedRating: 1950, topTopics: [], globalRankingTopPercent: 'Top 3.5%' },
-          linkedinHighlights: { headline: 'Software Engineer', yearsOfExp: 4, keyAchievements: [], industryDomains: [] },
-          substackInsights: { handle: 'engineer', publicationTopics: [], technicalDepthScore: 92, notableArticles: [] },
-          twitterSignals: { handle: 'engineer', publicBuildingFocus: [], domainAuthority: 'High' },
+          githubMetrics: { username: '', totalRepos: 0, topLanguages: [], featuredRepos: [], commitFrequency: 'Not Provided', codeQualityRating: 0 },
+          leetcodeMetrics: { totalSolved: 0, easySolved: 0, mediumSolved: 0, hardSolved: 0, estimatedRating: 0, topTopics: [], globalRankingTopPercent: 'Not Provided' },
+          linkedinHighlights: { headline: 'Software Engineer', yearsOfExp: 0, keyAchievements: [], industryDomains: [] },
+          substackInsights: { handle: '', publicationTopics: [], technicalDepthScore: 0, notableArticles: [] },
+          twitterSignals: { handle: '', publicBuildingFocus: [], domainAuthority: 'Not Provided' },
           keyStrengths: [],
           competitiveAdvantages: [],
           growthAreas: [],
-          overallMarketFitScore: 94,
+          overallMarketFitScore: 0,
           analyzedAt: new Date().toISOString(),
           sourcesAnalyzed: { linkedin: true, github: true, leetcode: true, substack: true, twitter: true },
         };

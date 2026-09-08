@@ -6,7 +6,7 @@ import {
   verifySignedToken, 
   generateSecureVerificationCode, 
   verifySecureCode 
-} from '../server/auth';
+} from '../server/services/auth';
 
 describe('Authentication & Cryptography Unit Tests', () => {
   it('should securely hash password with PBKDF2 and 100k iterations', () => {

@@ -7,7 +7,7 @@
 [![Gemini](https://img.shields.io/badge/Gemini_2.5_Flash-Google_AI-4285F4?style=flat-square&logo=google&logoColor=white)](https://ai.google.dev/)
 [![Status](https://img.shields.io/badge/Status-Production_Ready-emerald?style=flat-square)]()
 
-**OmniApply AI** is an end-to-end autonomous career intelligence engine and multi-platform application compiler. It aggregates candidate public footprints across **GitHub, LeetCode, Substack, LinkedIn, and Twitter/X**, synthesizes a **Unified Candidate Dossier**, and generates tailored, ATS-optimized application packages for **Wellfound, LinkedIn, Internshala, Greenhouse, and Lever**.
+**OmniApply AI** is an end-to-end autonomous career intelligence engine and multi-platform application compiler. It aggregates candidate public footprints across **GitHub, LeetCode, and Substack**, synthesizes a **Unified Candidate Dossier**, and generates tailored, ATS-optimized application packages for **Wellfound, LinkedIn, Internshala, Greenhouse, and Lever**.
 
 ---
 
@@ -38,7 +38,7 @@
    +---------------------------------------------------------------------------------+
    |                                1. SIGNAL INGESTION                              |
    |                                                                                 |
-   |   [ GitHub API ]       [ LeetCode GraphQL ]      [ Substack RSS ]     [ LinkedIn/X ]
+   |   [ GitHub API ]       [ LeetCode GraphQL ]      [ Substack RSS ]     [ Portfolio Pages ]
    |   Repos, PRs, Langs    DSA Ranking, Badges      Writings, Essays      Tenure & Bio  
    +---------------------------------------+-----------------------------------------+
                                            |
@@ -257,3 +257,9 @@ Contributions are welcome! Please review [CONTRIBUTING.md](./CONTRIBUTING.md) fo
 <div align="center">
   <sub>Built with ❤️ by the OmniApply Open Source Contributors.</sub>
 </div>
+
+### Dual-Runtime Deployment Architecture
+
+OmniApply AI uses a dual-runtime architecture for flexible deployment:
+1. **Serverless (Vercel)**: The `api/index.ts` entry point exports the Express application for serverless invocation on Vercel.
+2. **Containerized/Local (Docker/Node)**: The `server.ts` entry point initializes a long-running Express server listening on port 3000, suitable for standard container deployments (Cloud Run, AWS ECS).

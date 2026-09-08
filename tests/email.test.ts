@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { sendVerificationEmail } from '../server/email';
+import { sendVerificationEmail } from '../server/services/email';
 
 describe('Email Dispatching Service Tests', () => {
   const originalEnv = process.env;

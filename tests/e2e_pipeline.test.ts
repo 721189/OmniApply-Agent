@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { createApp } from '../server/app';
 import { db } from '../server/sqlite_db';
-import { generateTailoredResumePackage } from '../server/resumeGenerator';
-import { generateFollowUpSequence } from '../server/followupGenerator';
+import { generateTailoredResumePackage } from '../server/services/resumeGenerator';
+import { generateFollowUpSequence } from '../server/services/followupGenerator';
 
 describe('End-to-End Pipeline & Integration Test Suite', () => {
   let app: any;

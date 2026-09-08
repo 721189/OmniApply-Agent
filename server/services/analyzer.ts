@@ -311,11 +311,11 @@ Return a valid JSON object matching this schema strictly:
       } : undefined,
       githubMetrics: hasGithub ? (parsed.githubMetrics || {
         username: ghHandle,
-        totalRepos: ghScrape.totalRepos || 15,
-        topLanguages: ghScrape.topLanguages.length ? ghScrape.topLanguages : ['TypeScript', 'JavaScript'],
-        featuredRepos: ghScrape.featuredRepos || [],
-        commitFrequency: 'Active',
-        codeQualityRating: 88,
+        totalRepos: ghScrape.success ? ghScrape.totalRepos : 0,
+        topLanguages: ghScrape.success && ghScrape.topLanguages.length ? ghScrape.topLanguages : [],
+        featuredRepos: ghScrape.success ? ghScrape.featuredRepos : [],
+        commitFrequency: ghScrape.success ? 'Active' : 'Not Provided',
+        codeQualityRating: 0,
       }) : {
         username: '',
         totalRepos: 0,
@@ -325,13 +325,13 @@ Return a valid JSON object matching this schema strictly:
         codeQualityRating: 0,
       },
       leetcodeMetrics: hasLeetcode ? (parsed.leetcodeMetrics || {
-        totalSolved: lcScrape.metrics.totalSolved || 150,
-        easySolved: lcScrape.metrics.easySolved || 60,
-        mediumSolved: lcScrape.metrics.mediumSolved || 75,
-        hardSolved: lcScrape.metrics.hardSolved || 15,
-        estimatedRating: lcScrape.metrics.estimatedRating || 1700,
-        topTopics: lcScrape.metrics.topTopics.length ? lcScrape.metrics.topTopics : ['Arrays & Strings', 'Trees', 'Dynamic Programming'],
-        globalRankingTopPercent: lcScrape.metrics.globalRankingTopPercent || 'Active',
+        totalSolved: lcScrape.success ? lcScrape.metrics.totalSolved : 0,
+        easySolved: lcScrape.success ? lcScrape.metrics.easySolved : 0,
+        mediumSolved: lcScrape.success ? lcScrape.metrics.mediumSolved : 0,
+        hardSolved: lcScrape.success ? lcScrape.metrics.hardSolved : 0,
+        estimatedRating: lcScrape.success ? lcScrape.metrics.estimatedRating : 0,
+        topTopics: lcScrape.success && lcScrape.metrics.topTopics.length ? lcScrape.metrics.topTopics : [],
+        globalRankingTopPercent: lcScrape.success ? lcScrape.metrics.globalRankingTopPercent : 'Not Provided',
       }) : {
         totalSolved: 0,
         easySolved: 0,
@@ -343,15 +343,15 @@ Return a valid JSON object matching this schema strictly:
       },
       linkedinHighlights: parsed.linkedinHighlights || {
         headline: `${userName} - Software Engineer`,
-        yearsOfExp: 2,
-        keyAchievements: ['Developed and shipped responsive web applications with modern tech stack.'],
-        industryDomains: ['Software Development', 'Web Platforms'],
+        yearsOfExp: 0,
+        keyAchievements: [],
+        industryDomains: [],
       },
       substackInsights: hasSubstack ? (parsed.substackInsights || {
         handle: subHandle,
-        publicationTopics: subScrape.publicationTopics.length ? subScrape.publicationTopics : ['Software Engineering'],
-        technicalDepthScore: subScrape.technicalDepthScore || 85,
-        notableArticles: subScrape.notableArticles || [],
+        publicationTopics: subScrape.success && subScrape.publicationTopics.length ? subScrape.publicationTopics : [],
+        technicalDepthScore: subScrape.success ? subScrape.technicalDepthScore : 0,
+        notableArticles: subScrape.success ? subScrape.notableArticles : [],
       }) : {
         handle: '',
         publicationTopics: [],
@@ -360,23 +360,23 @@ Return a valid JSON object matching this schema strictly:
       },
       twitterSignals: hasTwitter ? (parsed.twitterSignals || {
         handle: twHandle,
-        publicBuildingFocus: ['#buildinpublic', 'Tech Insights'],
-        domainAuthority: 'Engaged tech creator',
+        publicBuildingFocus: [],
+        domainAuthority: 'Not Provided',
       }) : {
         handle: '',
         publicBuildingFocus: [],
         domainAuthority: 'Not Provided',
       },
       keyStrengths: parsed.keyStrengths?.length ? parsed.keyStrengths : [
-        'Full-Stack Development: Practical capability shipping responsive web applications from UI to server API.',
-        'Project Execution: Demonstrated tangible project delivery evidenced in portfolio and code artifacts.'
+        'Practical capability shipping responsive web applications from UI to server API.',
+        'Demonstrated tangible project delivery evidenced in portfolio.'
       ],
       competitiveAdvantages: parsed.competitiveAdvantages?.length ? parsed.competitiveAdvantages : [
         'Solid foundational building velocity and modern framework agility.',
         'Strong focus on clean modular UI and practical product delivery.'
       ],
       growthAreas: parsed.growthAreas || [],
-      overallMarketFitScore: parsed.overallMarketFitScore || 90,
+      overallMarketFitScore: parsed.overallMarketFitScore || 0,
       analyzedAt: new Date().toISOString(),
       sourcesAnalyzed: {
         linkedin: hasLinkedin,
@@ -426,11 +426,11 @@ Return a valid JSON object matching this schema strictly:
       } : undefined,
       githubMetrics: hasGithub ? {
         username: ghHandle,
-        totalRepos: ghScrape.totalRepos || 18,
-        topLanguages: ghScrape.topLanguages.length ? ghScrape.topLanguages : ['TypeScript', 'JavaScript'],
-        featuredRepos: ghScrape.featuredRepos || [],
-        commitFrequency: 'Active contributor',
-        codeQualityRating: 88,
+        totalRepos: ghScrape.success ? ghScrape.totalRepos : 0,
+        topLanguages: ghScrape.success && ghScrape.topLanguages.length ? ghScrape.topLanguages : [],
+        featuredRepos: ghScrape.success ? ghScrape.featuredRepos : [],
+        commitFrequency: ghScrape.success ? 'Active contributor' : 'Not Provided',
+        codeQualityRating: 0,
       } : {
         username: '',
         totalRepos: 0,
@@ -440,13 +440,13 @@ Return a valid JSON object matching this schema strictly:
         codeQualityRating: 0,
       },
       leetcodeMetrics: hasLeetcode ? {
-        totalSolved: lcScrape.metrics.totalSolved || 160,
-        easySolved: lcScrape.metrics.easySolved || 70,
-        mediumSolved: lcScrape.metrics.mediumSolved || 75,
-        hardSolved: lcScrape.metrics.hardSolved || 15,
-        estimatedRating: lcScrape.metrics.estimatedRating || 1720,
-        topTopics: lcScrape.metrics.topTopics.length ? lcScrape.metrics.topTopics : ['Arrays & Strings', 'Trees', 'Dynamic Programming'],
-        globalRankingTopPercent: lcScrape.metrics.globalRankingTopPercent || 'Top 15%',
+        totalSolved: lcScrape.success ? lcScrape.metrics.totalSolved : 0,
+        easySolved: lcScrape.success ? lcScrape.metrics.easySolved : 0,
+        mediumSolved: lcScrape.success ? lcScrape.metrics.mediumSolved : 0,
+        hardSolved: lcScrape.success ? lcScrape.metrics.hardSolved : 0,
+        estimatedRating: lcScrape.success ? lcScrape.metrics.estimatedRating : 0,
+        topTopics: lcScrape.success && lcScrape.metrics.topTopics.length ? lcScrape.metrics.topTopics : [],
+        globalRankingTopPercent: lcScrape.success ? lcScrape.metrics.globalRankingTopPercent : 'Not Provided',
       } : {
         totalSolved: 0,
         easySolved: 0,
@@ -458,18 +458,15 @@ Return a valid JSON object matching this schema strictly:
       },
       linkedinHighlights: {
         headline: `${userName} - Software Engineer`,
-        yearsOfExp: 2,
-        keyAchievements: [
-          'Developed and maintained modular web applications with clean code architecture.',
-          'Integrated RESTful APIs and optimized database queries for responsive performance.'
-        ],
-        industryDomains: ['Software Engineering', 'Web Applications', 'Technology Solutions'],
+        yearsOfExp: 0,
+        keyAchievements: [],
+        industryDomains: [],
       },
       substackInsights: hasSubstack ? {
         handle: subHandle,
-        publicationTopics: subScrape.publicationTopics.length ? subScrape.publicationTopics : ['Software Development'],
-        technicalDepthScore: subScrape.technicalDepthScore || 85,
-        notableArticles: subScrape.notableArticles || [],
+        publicationTopics: subScrape.success && subScrape.publicationTopics.length ? subScrape.publicationTopics : [],
+        technicalDepthScore: subScrape.success ? subScrape.technicalDepthScore : 0,
+        notableArticles: subScrape.success ? subScrape.notableArticles : [],
       } : {
         handle: '',
         publicationTopics: [],
@@ -478,26 +475,23 @@ Return a valid JSON object matching this schema strictly:
       },
       twitterSignals: hasTwitter ? {
         handle: twHandle,
-        publicBuildingFocus: ['#buildinpublic', 'Software Engineering'],
-        domainAuthority: 'Active engineering presence',
+        publicBuildingFocus: [],
+        domainAuthority: 'Not Provided',
       } : {
         handle: '',
         publicBuildingFocus: [],
         domainAuthority: 'Not Provided',
       },
       keyStrengths: [
-        'Full-Stack Delivery: Ability to implement complete user features spanning frontend UI to server database.',
-        'Project Proof: Verified hands-on projects showing practical software craftsmanship.',
-        'Modern Tech Agility: Rapid adaptability across contemporary web frameworks and developer toolchains.'
+        'Ability to implement user features spanning frontend UI to server database.',
+        'Verified hands-on projects showing practical software craftsmanship.'
       ],
       competitiveAdvantages: [
-        'High execution speed and attention to clean, responsive design.',
-        'Focus on practical, production-ready solutions and reliable problem solving.'
+        'Attention to clean, responsive design.',
+        'Focus on practical, production-ready solutions.'
       ],
-      growthAreas: [
-        'Further deepening advanced distributed systems design and high-scale cloud infrastructure.'
-      ],
-      overallMarketFitScore: 91,
+      growthAreas: [],
+      overallMarketFitScore: 0,
       analyzedAt: new Date().toISOString(),
       sourcesAnalyzed: {
         linkedin: hasLinkedin,
