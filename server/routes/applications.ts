@@ -3,7 +3,6 @@ import { db } from '../db';
 import { getUserFromReq } from '../middleware/auth';
 import { PlatformType, JobApplication, AgentTask } from '../../src/types';
 import { generateApplicationPackage } from '../services/appGenerator';
-import { analyzeCandidateProfiles } from '../services/analyzer';
 
 const router = Router();
 
@@ -43,18 +42,7 @@ router.post('/generate', async (req: Request, res: Response) => {
       candidate = await db.getAnalysis(userId);
     }
     if (!candidate) {
-      candidate = await analyzeCandidateProfiles(
-        {
-          github: 'https://github.com/developer',
-          linkedin: 'https://linkedin.com/in/engineer',
-          leetcode: 'https://leetcode.com/u/algorithms',
-          substack: 'https://techwriting.substack.com',
-          twitter: 'https://x.com/tech_builder',
-        },
-        user.name || 'Software Engineer'
-      );
-      candidate.userId = userId;
-      await db.saveAnalysis(candidate);
+      return res.status(400).json({ error: 'Candidate profile must be analyzed first' });
     }
 
     const taskId = `task-appgen-${Date.now()}`;
