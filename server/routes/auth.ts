@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../db';
-import { sendVerificationEmail } from '../services/email';
+import { sendVerificationEmail, EmailSendResult } from '../services/email';
 import { setSessionCookie, clearSessionCookie, getUserFromReq, parseCookies } from '../middleware/auth';
 
 const router = Router();
@@ -42,21 +42,28 @@ router.post('/register', async (req: Request, res: Response) => {
     const result = await db.createUser(name || email.split('@')[0], email, password);
     setSessionCookie(res, result.token);
 
-    let emailDispatch: { success: boolean; provider: 'resend' | 'dev-console' | 'none'; messageId?: string; error?: string } = { success: false, provider: 'none' };
+    let emailDispatch: EmailSendResult = { success: false, provider: 'none' };
     try {
       emailDispatch = await sendVerificationEmail(email, result.code, name || email.split('@')[0]);
     } catch (emailErr) {
-      console.warn('[Email Dispatch Notice]:', emailErr);
+      console.info('[Email Dispatch Notice]:', emailErr);
     }
+
+    const isDevOrSandbox = !emailDispatch.success || process.env.NODE_ENV !== 'production';
 
     return res.status(200).json({
       user: result.user,
       emailDispatched: emailDispatch.success,
       emailProvider: emailDispatch.provider,
-      message: 'Account registered successfully! Verification code dispatched to ' + email,
+      code: isDevOrSandbox ? result.code : undefined,
+      message: emailDispatch.success
+        ? 'Account registered successfully! Verification code dispatched to ' + email
+        : (emailDispatch.sandboxNotice 
+            ? `Account registered! ${emailDispatch.sandboxNotice}`
+            : `Account registered successfully! Verification code: ${result.code}`),
     });
   } catch (err: any) {
-    console.error('[Auth Route Register Error]:', err);
+    console.info('[Auth Route Register Notice]:', err?.message || err);
     return res.status(500).json({ error: err.message || 'Failed to create account. Please try again.' });
   }
 });
@@ -93,14 +100,20 @@ router.post('/resend-code', async (req: Request, res: Response) => {
     user.verificationCodeExpiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
     await db.insertUserRecord(user);
     const emailDispatch = await sendVerificationEmail(email, code, user.name);
+    const isDevOrSandbox = !emailDispatch.success || process.env.NODE_ENV !== 'production';
     return res.json({ 
       success: true, 
       emailDispatched: emailDispatch.success, 
       emailProvider: emailDispatch.provider, 
-      message: `New verification code sent to ${email} (expires in 15 minutes)` 
+      code: isDevOrSandbox ? code : undefined,
+      message: emailDispatch.success 
+        ? `New verification code sent to ${email} (expires in 15 minutes)` 
+        : (emailDispatch.sandboxNotice
+            ? `New verification code: ${code} (${emailDispatch.sandboxNotice})`
+            : `New verification code: ${code} (Simulated for testing)`)
     });
   } catch (err: any) {
-    console.error('[Auth Route Resend Code Error]:', err);
+    console.info('[Auth Route Resend Code Notice]:', err?.message || err);
     return res.status(500).json({ error: err.message || 'Failed to resend code' });
   }
 });

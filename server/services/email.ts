@@ -11,6 +11,8 @@ export interface EmailSendResult {
   provider: 'resend' | 'dev-console' | 'none';
   messageId?: string;
   error?: string;
+  sandboxNotice?: string;
+  devCode?: string;
 }
 
 export async function sendVerificationEmail(
@@ -78,11 +80,24 @@ export async function sendVerificationEmail(
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`[Email Dispatch] Resend API error (${response.status}):`, errorText);
+        const isSandboxNotice = response.status === 403 && (
+          errorText.includes('testing emails') ||
+          errorText.includes('validation_error') ||
+          errorText.includes('resend.com/domains')
+        );
+
+        if (isSandboxNotice) {
+          console.info(`[Email Dispatch] Resend Sandbox Notice (403): Testing restriction active. Recipient (${toEmail}) is unverified on this Resend testing account. Simulation OTP code: [ ${verificationCode} ]`);
+        } else {
+          console.info(`[Email Dispatch] Resend API notice (${response.status}):`, errorText);
+        }
+
         return {
           success: false,
           provider: 'resend',
           error: `Resend error HTTP ${response.status}: ${errorText}`,
+          sandboxNotice: isSandboxNotice ? `Resend testing sandbox: verification code is ${verificationCode}` : undefined,
+          devCode: verificationCode,
         };
       }
 
@@ -94,22 +109,24 @@ export async function sendVerificationEmail(
         messageId: data.id,
       };
     } catch (err: any) {
-      console.error('[Email Dispatch] Failed to dispatch via Resend:', err);
+      console.info('[Email Dispatch Notice] Network error dispatching via Resend:', err?.message || err);
       return {
         success: false,
         provider: 'resend',
         error: err?.message || String(err),
+        devCode: verificationCode,
       };
     }
   }
 
   // Missing RESEND_API_KEY handling
   if (isProduction) {
-    console.error(`[Email Dispatch FATAL] Running in production mode without RESEND_API_KEY. Verification email to ${toEmail} cannot be delivered.`);
+    console.info(`[Email Dispatch Notice] Running in production mode without RESEND_API_KEY. Verification email to ${toEmail} cannot be delivered.`);
     return {
       success: false,
       provider: 'none',
       error: 'Missing RESEND_API_KEY in production environment. Transactional email delivery failed.',
+      devCode: verificationCode,
     };
   }
 

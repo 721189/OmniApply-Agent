@@ -51,3 +51,24 @@ export const getUserFromReq = async (req: Request) => {
   }
   return null;
 };
+
+export const getOrSetGuestId = (req: Request, res: Response): string => {
+  const cookies = parseCookies(req);
+  if (cookies.omniapply_guest_id) {
+    return cookies.omniapply_guest_id;
+  }
+  const guestId = `guest_${Math.random().toString(36).substring(2, 10)}_${Date.now()}`;
+  const isProd = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
+  const cookieStr = `omniapply_guest_id=${guestId}; Path=/; SameSite=Lax; Max-Age=2592000${isProd ? '; Secure' : ''}`;
+
+  const existing = res.getHeader('Set-Cookie');
+  if (Array.isArray(existing)) {
+    res.setHeader('Set-Cookie', [...existing, cookieStr]);
+  } else if (existing) {
+    res.setHeader('Set-Cookie', [String(existing), cookieStr]);
+  } else {
+    res.setHeader('Set-Cookie', [cookieStr]);
+  }
+  return guestId;
+};
+

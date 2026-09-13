@@ -23,6 +23,7 @@ interface CopilotChatDrawerProps {
   onClose: () => void;
   currentUser: UserAccount | null;
   onShowToast: (msg: string, type: 'success' | 'error' | 'info') => void;
+  onOpenAuth?: () => void;
 }
 
 export const CopilotChatDrawer: React.FC<CopilotChatDrawerProps> = ({
@@ -30,6 +31,7 @@ export const CopilotChatDrawer: React.FC<CopilotChatDrawerProps> = ({
   onClose,
   currentUser,
   onShowToast,
+  onOpenAuth,
 }) => {
   const [activeTab, setActiveTab] = useState<'chat' | 'activity'>('chat');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -91,7 +93,7 @@ export const CopilotChatDrawer: React.FC<CopilotChatDrawerProps> = ({
     // Optimistic user message
     const tempUserMsg: ChatMessage = {
       id: `temp-${Date.now()}`,
-      userId: currentUser?.id || 'temp-user',
+      userId: currentUser?.id || 'guest',
       sender: 'user',
       text: queryText,
       timestamp: new Date().toISOString(),
@@ -106,18 +108,23 @@ export const CopilotChatDrawer: React.FC<CopilotChatDrawerProps> = ({
         body: JSON.stringify({ text: queryText, topic: selectedTopic }),
       });
 
-      if (res.ok) {
-        const data = await res.json();
+      const data = await res.json().catch(() => null);
+
+      if (res.ok && data?.assistantMessage) {
         setMessages((prev) => [
           ...prev.filter((m) => m.id !== tempUserMsg.id),
           data.userMessage,
           data.assistantMessage,
         ]);
       } else {
-        onShowToast('Failed to connect to AI Copilot', 'error');
+        // Remove optimistic message if server failed
+        setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
+        const errorMsg = data?.error || (res.status === 401 ? 'Please sign in to save your career conversation' : 'Failed to connect to AI Copilot. Please try again.');
+        onShowToast(errorMsg, 'error');
       }
-    } catch (err) {
-      onShowToast('Network error sending message', 'error');
+    } catch (err: any) {
+      setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
+      onShowToast(err?.message || 'Network error sending message', 'error');
     } finally {
       setIsSending(false);
     }
@@ -240,6 +247,24 @@ export const CopilotChatDrawer: React.FC<CopilotChatDrawerProps> = ({
                 </button>
               )}
             </div>
+
+            {/* Guest Banner Notice */}
+            {!currentUser && (
+              <div className="px-3.5 py-2 bg-indigo-950/30 border-b border-indigo-900/30 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 text-slate-300 text-[11px]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                  <span>Guest Session · AI Career Copilot active</span>
+                </div>
+                {onOpenAuth && (
+                  <button
+                    onClick={onOpenAuth}
+                    className="text-[10px] font-semibold text-indigo-400 hover:text-indigo-200 underline decoration-indigo-400/50 hover:decoration-indigo-200 shrink-0"
+                  >
+                    Sign in to save history
+                  </button>
+                )}
+              </div>
+            )}
 
             {/* Chat Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">

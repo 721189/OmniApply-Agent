@@ -83,7 +83,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         if (!data.user.isVerified) {
           setMode('verify');
           setResendCountdown(30);
-          setSuccessMsg(`Verification code sent to ${email}. Enter the 6-digit code below to complete verification.`);
+          if (data.code) {
+            setCode(data.code);
+            setSuccessMsg(`Verification code: ${data.code} (auto-filled for testing). Enter below or click Verify Email.`);
+          } else {
+            setSuccessMsg(data.message || `Verification code sent to ${email}. Enter the 6-digit code below to complete verification.`);
+          }
         } else {
           setSuccessMsg('Logged in successfully!');
           setTimeout(onClose, 800);
@@ -146,8 +151,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       if (!res.ok || !parsed.ok || parsed.error) {
         throw new Error(parsed.error || parsed.data?.error || 'Failed to resend code');
       }
+      const data = parsed.data;
       setResendCountdown(30);
-      setSuccessMsg(`New verification code sent to ${email}`);
+      if (data?.code) {
+        setCode(data.code);
+        setSuccessMsg(`New verification code: ${data.code} (auto-filled for testing).`);
+      } else {
+        setSuccessMsg(data?.message || `New verification code sent to ${email}`);
+      }
     } catch (err: any) {
       setError(err.message || 'Could not resend code');
     } finally {

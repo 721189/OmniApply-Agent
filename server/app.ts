@@ -8,7 +8,7 @@ import { scrapeGitHubProfile, scrapeLeetCodeProfile, scrapeSubstackProfile } fro
 import { generateTailoredResumePackage, buildLatexResumeDocument } from './services/resumeGenerator';
 import { generateFollowUpSequence, generateIcsCalendarFile } from './services/followupGenerator';
 import { generateContentWithFallback } from './services/gemini';
-import { sendVerificationEmail } from './services/email';
+import { sendVerificationEmail, EmailSendResult } from './services/email';
 import { ProfileUrls, PlatformType, JobApplication, AgentTask } from '../src/types';
 
 export async function createApp() {
@@ -200,6 +200,26 @@ export async function createApp() {
     return null;
   };
 
+  const getOrSetGuestId = (req: Request, res: Response): string => {
+    const cookies = parseCookies(req);
+    if (cookies.omniapply_guest_id) {
+      return cookies.omniapply_guest_id;
+    }
+    const guestId = `guest_${Math.random().toString(36).substring(2, 10)}_${Date.now()}`;
+    const isProd = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
+    const cookieStr = `omniapply_guest_id=${guestId}; Path=/; SameSite=Lax; Max-Age=2592000${isProd ? '; Secure' : ''}`;
+
+    const existing = res.getHeader('Set-Cookie');
+    if (Array.isArray(existing)) {
+      res.setHeader('Set-Cookie', [...existing, cookieStr]);
+    } else if (existing) {
+      res.setHeader('Set-Cookie', [String(existing), cookieStr]);
+    } else {
+      res.setHeader('Set-Cookie', [cookieStr]);
+    }
+    return guestId;
+  };
+
   // --- 1. Health & Readiness Probe (Active PostgreSQL / SQL connectivity test) ---
   app.get('/api/health', async (req: Request, res: Response) => {
     const dbProbe = await db.probeHealth();
@@ -256,21 +276,28 @@ export async function createApp() {
       const result = await db.createUser(name || email.split('@')[0], email, password);
       setSessionCookie(res, result.token);
 
-      let emailDispatch: { success: boolean; provider: 'resend' | 'dev-console' | 'none'; messageId?: string; error?: string } = { success: false, provider: 'none' };
+      let emailDispatch: EmailSendResult = { success: false, provider: 'none' };
       try {
         emailDispatch = await sendVerificationEmail(email, result.code, name || email.split('@')[0]);
       } catch (emailErr) {
-        console.warn('[Email Dispatch Notice]:', emailErr);
+        console.info('[Email Dispatch Notice]:', emailErr);
       }
+
+      const isDevOrSandbox = !emailDispatch.success || process.env.NODE_ENV !== 'production';
 
       return res.json({
         user: result.user,
         emailDispatched: emailDispatch.success,
         emailProvider: emailDispatch.provider,
-        message: 'Account registered successfully! Verification code dispatched to ' + email,
+        code: isDevOrSandbox ? result.code : undefined,
+        message: emailDispatch.success
+          ? 'Account registered successfully! Verification code dispatched to ' + email
+          : (emailDispatch.sandboxNotice 
+              ? `Account registered! ${emailDispatch.sandboxNotice}`
+              : `Account registered successfully! Verification code: ${result.code}`),
       });
     } catch (err: any) {
-      console.error('[Auth Register Error]:', err);
+      console.info('[Auth Register Notice]:', err?.message || err);
       return res.status(500).json({ error: err.message || 'Failed to create account. Please try again.' });
     }
   });
@@ -310,14 +337,20 @@ export async function createApp() {
       user.verificationCodeExpiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
       await db.insertUserRecord(user);
       const emailDispatch = await sendVerificationEmail(email, code, user.name);
+      const isDevOrSandbox = !emailDispatch.success || process.env.NODE_ENV !== 'production';
       return res.json({ 
         success: true, 
-        emailDispatched: emailDispatch.success,
-        emailProvider: emailDispatch.provider,
-        message: `New verification code sent to ${email} (expires in 15 minutes)` 
+        emailDispatched: emailDispatch.success, 
+        emailProvider: emailDispatch.provider, 
+        code: isDevOrSandbox ? code : undefined,
+        message: emailDispatch.success 
+          ? `New verification code sent to ${email} (expires in 15 minutes)` 
+          : (emailDispatch.sandboxNotice
+              ? `New verification code: ${code} (${emailDispatch.sandboxNotice})`
+              : `New verification code: ${code} (Simulated for testing)`)
       });
     } catch (err: any) {
-      console.error('[Auth Resend Code Error]:', err);
+      console.info('[Auth Resend Code Notice]:', err?.message || err);
       return res.status(500).json({ error: err.message || 'Failed to resend verification code' });
     }
   });
@@ -1041,81 +1074,114 @@ Guidelines:
 
   // --- 8. Persistent AI Copilot Conversation Chat & Audit Logs ---
   app.get('/api/chat/history', async (req: Request, res: Response) => {
-    const user = await getUserFromReq(req);
-    if (!user) return res.status(401).json({ error: 'Unauthorized. Bearer token required.' });
-    const history = await db.getChatHistory(user.id);
-    res.json({ history });
+    try {
+      const user = await getUserFromReq(req);
+      const guestId = parseCookies(req).omniapply_guest_id;
+      const targetId = user ? user.id : (guestId || 'guest');
+      const history = await db.getChatHistory(targetId);
+      res.json({ history, isGuest: !user });
+    } catch (err: any) {
+      console.warn('[Chat History Notice]:', err?.message || err);
+      res.status(500).json({ error: 'Failed to retrieve chat history' });
+    }
   });
 
   app.post('/api/chat/message', async (req: Request, res: Response) => {
-    const user = await getUserFromReq(req);
-    if (!user) return res.status(401).json({ error: 'Unauthorized. Bearer token required.' });
-    const userId = user.id;
-    const { text, topic, referencedJobId } = req.body;
+    try {
+      const user = await getUserFromReq(req);
+      const targetId = user ? user.id : getOrSetGuestId(req, res);
+      const { text, topic, referencedJobId } = req.body;
 
-    if (!text || !text.trim()) {
-      return res.status(400).json({ error: 'Message text is required' });
-    }
-
-    const userMsg = await db.addChatMessage(userId, 'user', text, topic, referencedJobId);
-    await db.logActivity(userId, 'AI Chat Message Sent', 'chat', `Topic: ${topic || 'general'}, Query: "${text.slice(0, 60)}..."`);
-
-    const candidateAnalysis = await db.getAnalysis(userId);
-    let jobContext = '';
-    if (referencedJobId) {
-      const job = await db.getJob(referencedJobId);
-      if (job) {
-        jobContext = `REFERENCED JOB TARGET: ${job.jobTitle} at ${job.companyName}\nJOB DESCRIPTION: ${job.jobDescription.slice(0, 500)}`;
+      if (!text || typeof text !== 'string' || !text.trim()) {
+        return res.status(400).json({ error: 'Message text is required' });
       }
-    }
 
-    const pastHistory = (await db.getChatHistory(userId)).slice(-8);
-    const historyFormatted = pastHistory
-      .map((m) => `${m.sender.toUpperCase()}: ${m.text}`)
-      .join('\n');
+      const trimmedText = text.trim();
+      const userMsg = await db.addChatMessage(targetId, 'user', trimmedText, topic, referencedJobId);
+      if (user) {
+        await db.logActivity(user.id, 'AI Chat Message Sent', 'chat', `Topic: ${topic || 'general'}, Query: "${trimmedText.slice(0, 60)}..."`);
+      }
 
-    const prompt = `You are OmniApply Copilot, an elite AI career strategist and job application advisor.
+      const candidateAnalysis = user ? await db.getAnalysis(user.id) : null;
+      let jobContext = '';
+      if (referencedJobId) {
+        const job = await db.getJob(referencedJobId);
+        if (job) {
+          jobContext = `REFERENCED JOB TARGET: ${job.jobTitle} at ${job.companyName}\nJOB DESCRIPTION: ${job.jobDescription.slice(0, 500)}`;
+        }
+      }
+
+      const pastHistory = (await db.getChatHistory(targetId)).slice(-8);
+      const historyFormatted = pastHistory
+        .map((m) => `${m.sender.toUpperCase()}: ${m.text}`)
+        .join('\n');
+
+      const prompt = `You are OmniApply Copilot, an elite AI career strategist and job application advisor.
 Candidate Profile Context:
-- Name: ${candidateAnalysis?.fullName || 'Candidate'}
-- Title: ${candidateAnalysis?.experienceLevel || 'Software Engineer'}
-- Key Strengths: ${candidateAnalysis?.keyStrengths?.join(', ') || 'Full-Stack Software Development'}
+- Name: ${candidateAnalysis?.fullName || (user ? user.name : 'Candidate')}
+- Title: ${candidateAnalysis?.tagline || candidateAnalysis?.experienceLevel || 'Software Engineer'}
+- Key Strengths: ${candidateAnalysis?.keyStrengths?.join(', ') || 'Software Development, System Architecture'}
 ${jobContext}
 
 CONVERSATION HISTORY:
 ${historyFormatted}
 
-Candidate Question: "${text}"
+Candidate Question: "${trimmedText}"
 
 Provide a concise, high-value, tactical, actionable answer for the candidate. Be encouraging, highly professional, and direct.`;
 
-    try {
-      const geminiResponse = await generateContentWithFallback({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      let replyText = '';
+      try {
+        const geminiResponse = await generateContentWithFallback({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        });
+        replyText = geminiResponse.text || '';
+      } catch (geminiErr: any) {
+        console.warn('[AI Copilot Notice] Gemini fallback response activated:', geminiErr?.message || geminiErr);
+      }
+
+      if (!replyText || !replyText.trim()) {
+        replyText = `I understand you are asking about "${trimmedText.slice(0, 50)}...". I recommend highlighting your verified portfolio projects, aligning your technical stack with the job description keywords, and emphasizing measurable achievements in your outreach.`;
+      }
+
+      const assistantMsg = await db.addChatMessage(targetId, 'assistant', replyText, topic, referencedJobId);
+      return res.json({ 
+        userMessage: userMsg, 
+        assistantMessage: assistantMsg,
+        isGuest: !user 
       });
-      const replyText = geminiResponse.text || 'I am ready to help you navigate your job search and optimize your application strategy.';
-      
-      const assistantMsg = await db.addChatMessage(userId, 'assistant', replyText, topic, referencedJobId);
-      res.json({ userMessage: userMsg, assistantMessage: assistantMsg });
     } catch (err: any) {
-      const fallbackReply = `I understand you are asking about "${text.slice(0, 50)}...". I recommend highlighting your verified portfolio projects, aligning your technical stack with the job description keywords, and emphasizing measurable achievements in your outreach.`;
-      const assistantMsg = await db.addChatMessage(userId, 'assistant', fallbackReply, topic, referencedJobId);
-      res.json({ userMessage: userMsg, assistantMessage: assistantMsg });
+      console.error('[AI Copilot Message Error]:', err);
+      return res.status(500).json({ error: 'Failed to process AI Copilot message: ' + (err?.message || 'Server error') });
     }
   });
 
   app.delete('/api/chat/history', async (req: Request, res: Response) => {
-    const user = await getUserFromReq(req);
-    if (!user) return res.status(401).json({ error: 'Unauthorized. Bearer token required.' });
-    await db.clearChatHistory(user.id);
-    await db.logActivity(user.id, 'Cleared Chat History', 'chat', 'Candidate wiped AI conversation history');
-    res.json({ success: true, message: 'Chat history cleared' });
+    try {
+      const user = await getUserFromReq(req);
+      const guestId = parseCookies(req).omniapply_guest_id;
+      const targetId = user ? user.id : (guestId || 'guest');
+      await db.clearChatHistory(targetId);
+      if (user) {
+        await db.logActivity(user.id, 'Cleared Chat History', 'chat', 'Candidate wiped AI conversation history');
+      }
+      res.json({ success: true, message: 'Chat history cleared' });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to clear chat history' });
+    }
   });
 
   app.get('/api/activity/logs', async (req: Request, res: Response) => {
-    const user = await getUserFromReq(req);
-    if (!user) return res.status(401).json({ error: 'Unauthorized. Bearer token required.' });
-    const logs = await db.getActivityLogs(user.id);
-    res.json({ logs });
+    try {
+      const user = await getUserFromReq(req);
+      if (!user) {
+        return res.json({ logs: [] });
+      }
+      const logs = await db.getActivityLogs(user.id);
+      res.json({ logs });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Failed to retrieve activity logs' });
+    }
   });
 
   // Catch-all 404 for unhandled API endpoints to prevent falling through to HTML

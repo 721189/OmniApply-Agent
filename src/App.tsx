@@ -485,6 +485,7 @@ export default function App() {
         onClose={() => setIsCopilotOpen(false)}
         currentUser={currentUser}
         onShowToast={showToast}
+        onOpenAuth={() => setIsAuthModalOpen(true)}
       />
 
       {/* Floating Toast Notification */}
