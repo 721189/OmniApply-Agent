@@ -16,7 +16,7 @@ import {
   FileJson
 } from 'lucide-react';
 import { UserAccount } from '../types';
-import { apiFetch } from '../utils/apiClient';
+import { apiFetch, safeJson } from '../utils/apiClient';
 
 interface UserSettingsModalProps {
   isOpen: boolean;
@@ -84,8 +84,10 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ newPassword }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to update password');
+      const parsed = await safeJson(res);
+      if (!res.ok || !parsed.ok || parsed.error) {
+        throw new Error(parsed.error || parsed.data?.error || 'Failed to update password');
+      }
       setFeedback({ type: 'success', message: 'Password updated successfully!' });
       setNewPassword('');
       setConfirmPassword('');
@@ -100,10 +102,13 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
     setLoading(true);
     try {
       const res = await apiFetch('/api/auth/export-data');
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to export data');
+      const parsed = await safeJson(res);
+      if (!res.ok || !parsed.ok || parsed.error) {
+        throw new Error(parsed.error || parsed.data?.error || 'Failed to export data');
+      }
+      const data = parsed.data;
 
-      const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(data.data, null, 2))}`;
+      const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(JSON.stringify(data?.data || data, null, 2))}`;
       const downloadAnchor = document.createElement('a');
       downloadAnchor.setAttribute('href', jsonString);
       downloadAnchor.setAttribute('download', `omni-apply-user-data-${currentUser.name.toLowerCase().replace(/\s+/g, '-')}.json`);

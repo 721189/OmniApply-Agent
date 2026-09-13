@@ -14,7 +14,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { UserAccount } from '../types';
-import { apiFetch } from '../utils/apiClient';
+import { apiFetch, safeJson } from '../utils/apiClient';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -71,13 +71,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           password: password || 'demo-pass' 
         }),
       });
-      const data = await res.json();
+      const parsed = await safeJson(res);
 
-      if (!res.ok) {
-        throw new Error(data.error || 'Authentication failed');
+      if (!res.ok || !parsed.ok || parsed.error) {
+        throw new Error(parsed.error || parsed.data?.error || 'Authentication failed');
       }
 
-      if (data.user) {
+      const data = parsed.data;
+      if (data?.user) {
         onAuthSuccess(data.user);
         if (!data.user.isVerified) {
           setMode('verify');
@@ -112,14 +113,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim(), code: code.trim() }),
       });
-      const data = await res.json();
+      const parsed = await safeJson(res);
 
-      if (!res.ok) {
-        throw new Error(data.error || 'Invalid verification code');
+      if (!res.ok || !parsed.ok || parsed.error) {
+        throw new Error(parsed.error || parsed.data?.error || 'Invalid verification code');
       }
 
+      const data = parsed.data;
       setSuccessMsg('Email verified successfully! Autonomous agent pipelines active.');
-      if (data.user) {
+      if (data?.user) {
         onAuthSuccess(data.user);
       }
       setTimeout(onClose, 1200);
@@ -140,8 +142,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim() }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to resend code');
+      const parsed = await safeJson(res);
+      if (!res.ok || !parsed.ok || parsed.error) {
+        throw new Error(parsed.error || parsed.data?.error || 'Failed to resend code');
+      }
       setResendCountdown(30);
       setSuccessMsg(`New verification code sent to ${email}`);
     } catch (err: any) {
