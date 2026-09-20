@@ -4,6 +4,8 @@ export type JobStatus = 'draft' | 'prepared' | 'applied' | 'interviewing' | 'off
 
 export type TabType = 'profile' | 'studio' | 'review' | 'tracker' | 'telemetry';
 
+export type SubscriptionTier = 'free' | 'pro' | 'executive';
+
 export interface UserAccount {
   id: string;
   name: string;
@@ -15,7 +17,26 @@ export interface UserAccount {
   avatarUrl?: string;
   title?: string;
   location?: string;
+  tier?: SubscriptionTier;
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
+  subscriptionStatus?: string;
+  subscriptionExpiresAt?: string;
   createdAt: string;
+}
+
+export interface AtsScanResult {
+  score: number;
+  grade: 'A+' | 'A' | 'B' | 'C' | 'Needs Improvement';
+  candidateName?: string;
+  targetRole?: string;
+  matchedKeywords: string[];
+  missingKeywords: string[];
+  strengths: string[];
+  criticalGaps: string[];
+  formattingIssues: string[];
+  tailoredSummaryPitch: string;
+  estimatedCallbackProbability: string;
 }
 
 export interface ProfileUrls {

@@ -373,8 +373,12 @@ export class SQLiteDatabase {
 
   public async insertUserRecord(u: StoredUser) {
     await runSql(
-      `INSERT OR REPLACE INTO users (id, name, email, is_verified, title, location, avatar_url, verification_code, verification_code_expires_at, token_version, password_hash, password_salt, saved_urls, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+      `INSERT OR REPLACE INTO users (
+        id, name, email, is_verified, title, location, avatar_url, 
+        verification_code, verification_code_expires_at, token_version, 
+        password_hash, password_salt, saved_urls, tier, stripe_customer_id, 
+        stripe_subscription_id, subscription_status, subscription_expires_at, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       [
         u.id,
         u.name,
@@ -389,6 +393,11 @@ export class SQLiteDatabase {
         u.passwordHash || null,
         u.passwordSalt || null,
         JSON.stringify(u.savedUrls || {}),
+        u.tier || 'free',
+        u.stripeCustomerId || null,
+        u.stripeSubscriptionId || null,
+        u.subscriptionStatus || 'active',
+        u.subscriptionExpiresAt || null,
         u.createdAt || new Date().toISOString(),
       ]
     );
@@ -906,9 +915,33 @@ export class SQLiteDatabase {
       tokenVersion: row.token_version ? Number(row.token_version) : 1,
       passwordHash: row.password_hash || undefined,
       passwordSalt: row.password_salt || undefined,
+      tier: (row.tier as any) || 'free',
+      stripeCustomerId: row.stripe_customer_id || undefined,
+      stripeSubscriptionId: row.stripe_subscription_id || undefined,
+      subscriptionStatus: row.subscription_status || 'active',
+      subscriptionExpiresAt: row.subscription_expires_at || undefined,
       savedUrls,
       createdAt: row.created_at,
     };
+  }
+
+  async updateUserSubscription(
+    userId: string,
+    tier: 'free' | 'pro' | 'executive',
+    stripeCustomerId?: string,
+    stripeSubscriptionId?: string,
+    status: string = 'active',
+    expiresAt?: string
+  ): Promise<UserAccount | undefined> {
+    const user = await this.getUserById(userId);
+    if (!user) return undefined;
+    user.tier = tier;
+    if (stripeCustomerId) user.stripeCustomerId = stripeCustomerId;
+    if (stripeSubscriptionId) user.stripeSubscriptionId = stripeSubscriptionId;
+    user.subscriptionStatus = status;
+    if (expiresAt) user.subscriptionExpiresAt = expiresAt;
+    await this.insertUserRecord(user);
+    return this.sanitizeUser(user);
   }
 
   async getAppliedMigrations(): Promise<MigrationRecord[]> {

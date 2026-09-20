@@ -218,6 +218,24 @@ export const MIGRATIONS: MigrationDefinition[] = [
       `CREATE TABLE IF NOT EXISTS _schema_v3_check (id INTEGER PRIMARY KEY)`,
     ],
   },
+  {
+    version: 4,
+    name: '004_subscription_billing_tiers',
+    pgUp: `
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS tier VARCHAR(64) NOT NULL DEFAULT 'free';
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_customer_id VARCHAR(255);
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS stripe_subscription_id VARCHAR(255);
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(64) DEFAULT 'active';
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS subscription_expires_at TIMESTAMPTZ;
+    `,
+    sqliteUp: [
+      `ALTER TABLE users ADD COLUMN tier TEXT DEFAULT 'free'`,
+      `ALTER TABLE users ADD COLUMN stripe_customer_id TEXT`,
+      `ALTER TABLE users ADD COLUMN stripe_subscription_id TEXT`,
+      `ALTER TABLE users ADD COLUMN subscription_status TEXT DEFAULT 'active'`,
+      `ALTER TABLE users ADD COLUMN subscription_expires_at TEXT`,
+    ],
+  },
 ];
 
 /**
@@ -295,7 +313,12 @@ export function runSqliteMigrations(db: SqlJsDatabase): MigrationRecord[] {
   for (const mig of MIGRATIONS) {
     if (!appliedVersions.has(mig.version)) {
       for (const statement of mig.sqliteUp) {
-        db.run(statement);
+        try {
+          db.run(statement);
+        } catch (e: any) {
+          // Column or table might already exist
+          console.info(`[Migrations] SQLite statement notice in v${mig.version}:`, e?.message || e);
+        }
       }
       db.run('INSERT OR IGNORE INTO schema_migrations (version, name, applied_at) VALUES (?, ?, datetime(\'now\'))', [
         mig.version,

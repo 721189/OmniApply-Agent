@@ -10,7 +10,10 @@ import {
   ShieldCheck, 
   User, 
   LogOut,
-  Cpu
+  Cpu,
+  Crown,
+  Zap,
+  Award
 } from 'lucide-react';
 import { UserAccount, TabType } from '../types';
 
@@ -26,6 +29,8 @@ interface HeaderProps {
   onOpenAuth?: () => void;
   onOpenSettings?: () => void;
   onOpenCopilot?: () => void;
+  onOpenPricing?: () => void;
+  onOpenAtsScan?: () => void;
   onLogout: () => void;
   savedJobsCount: number;
   hasAnalysis?: boolean;
@@ -42,6 +47,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAuth,
   onOpenSettings,
   onOpenCopilot,
+  onOpenPricing,
+  onOpenAtsScan,
   onLogout,
   savedJobsCount,
   hasAnalysis,
@@ -59,6 +66,22 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 text-white shadow-xl">
+      {/* Market Launch Banner */}
+      <div className="bg-gradient-to-r from-indigo-950 via-slate-950 to-purple-950 border-b border-indigo-500/20 text-[11px] py-1 px-4 text-center flex items-center justify-center gap-3">
+        <span className="flex items-center gap-1.5 text-indigo-200">
+          <Sparkles className="h-3 w-3 text-amber-400" />
+          <span><strong>OmniApply v2.0 Commercial Release:</strong> Autonomous Career Agent tailored to your real GitHub & code</span>
+        </span>
+        {onOpenAtsScan && (
+          <button
+            onClick={onOpenAtsScan}
+            className="underline text-indigo-300 hover:text-white font-semibold cursor-pointer ml-1"
+          >
+            Free Instant ATS Scan →
+          </button>
+        )}
+      </div>
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-20 gap-4">
           
@@ -162,11 +185,54 @@ export const Header: React.FC<HeaderProps> = ({
           </nav>
 
           {/* User Status / Auth Controls */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
+            {onOpenAtsScan && (
+              <button
+                onClick={onOpenAtsScan}
+                className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-semibold transition-all shadow-sm cursor-pointer"
+                title="Instant Free ATS Resume Match Scorecard"
+              >
+                <Award className="h-3.5 w-3.5 text-emerald-400" />
+                <span>Scan ATS</span>
+              </button>
+            )}
+
+            {onOpenPricing && (
+              effectiveUser?.tier === 'pro' ? (
+                <button
+                  onClick={onOpenPricing}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 text-xs font-bold shadow-sm hover:border-indigo-400 transition-all cursor-pointer"
+                  title="OmniApply Pro Tier Active - Click to view plan"
+                >
+                  <Zap className="h-3.5 w-3.5 text-indigo-400" />
+                  <span>Pro</span>
+                </button>
+              ) : effectiveUser?.tier === 'executive' ? (
+                <button
+                  onClick={onOpenPricing}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-bold shadow-sm hover:border-amber-400 transition-all cursor-pointer"
+                  title="Executive Pass Active - Click to view plan"
+                >
+                  <Crown className="h-3.5 w-3.5 text-amber-400" />
+                  <span>Exec</span>
+                </button>
+              ) : (
+                <button
+                  onClick={onOpenPricing}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold shadow-md shadow-indigo-600/20 transition-all cursor-pointer"
+                  title="Upgrade to Pro: Unlock Unlimited AI Dossiers & Recruiter Sequences"
+                >
+                  <Crown className="h-3.5 w-3.5 text-amber-300" />
+                  <span className="hidden sm:inline">Pricing / Pro</span>
+                  <span className="sm:hidden">Pro</span>
+                </button>
+              )
+            )}
+
             {onOpenCopilot && (
               <button
                 onClick={onOpenCopilot}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-semibold transition-all shadow-sm"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-semibold transition-all shadow-sm cursor-pointer"
                 title="Open AI Copilot Chat & Activity Audit Trail"
               >
                 <Sparkles className="h-3.5 w-3.5 text-indigo-400 animate-pulse" />

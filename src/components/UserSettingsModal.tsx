@@ -13,7 +13,11 @@ import {
   MapPin, 
   Briefcase,
   Database,
-  FileJson
+  FileJson,
+  CreditCard,
+  Crown,
+  Zap,
+  Sparkles
 } from 'lucide-react';
 import { UserAccount } from '../types';
 import { apiFetch, safeJson } from '../utils/apiClient';
@@ -24,6 +28,7 @@ interface UserSettingsModalProps {
   currentUser: UserAccount | null;
   onUpdateProfile: (updated: Partial<UserAccount>) => Promise<void>;
   onLogout: () => void;
+  onOpenPricing?: () => void;
 }
 
 export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
@@ -32,8 +37,9 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
   currentUser,
   onUpdateProfile,
   onLogout,
+  onOpenPricing,
 }) => {
-  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'privacy'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'privacy' | 'billing'>('profile');
   
   // Profile state
   const [name, setName] = useState(currentUser?.name || '');
@@ -203,7 +209,17 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
             }`}
           >
             <Database className="h-3.5 w-3.5" />
-            <span>Data Privacy & GDPR</span>
+            <span>Data Privacy</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab('billing'); setFeedback(null); }}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-semibold transition-all ${
+              activeTab === 'billing' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <CreditCard className="h-3.5 w-3.5" />
+            <span>Billing & Plan</span>
           </button>
         </div>
 
@@ -406,6 +422,87 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
                 <Trash2 className="h-4 w-4" />
                 <span>Permanently Delete My Account & Wipe Data</span>
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Tab 4: Billing & Plan */}
+        {activeTab === 'billing' && (
+          <div className="space-y-4">
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-indigo-950/40 via-slate-900 to-slate-950 border border-indigo-500/30">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">
+                    {currentUser?.tier === 'executive' ? (
+                      <Crown className="h-5 w-5 text-amber-400" />
+                    ) : currentUser?.tier === 'pro' ? (
+                      <Zap className="h-5 w-5 text-indigo-400" />
+                    ) : (
+                      <Sparkles className="h-5 w-5 text-slate-400" />
+                    )}
+                  </div>
+                  <div>
+                    <div className="text-[10px] uppercase font-bold tracking-wider text-indigo-300">
+                      Current Subscription
+                    </div>
+                    <h3 className="text-base font-bold text-white capitalize">
+                      {currentUser?.tier === 'executive'
+                        ? 'Executive Pass Plan'
+                        : currentUser?.tier === 'pro'
+                        ? 'Pro Career Agent Plan'
+                        : 'Free Starter Plan'}
+                    </h3>
+                  </div>
+                </div>
+
+                <span className={`px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider border ${
+                  currentUser?.tier === 'executive'
+                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                    : currentUser?.tier === 'pro'
+                    ? 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40'
+                    : 'bg-slate-800 text-slate-300 border-slate-700'
+                }`}>
+                  {currentUser?.tier || 'free'}
+                </span>
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-slate-800/80 grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+                <div className="p-2.5 rounded-xl bg-slate-950/50 border border-slate-800">
+                  <div className="text-[10px] text-slate-400">Applications Limit</div>
+                  <div className="font-bold text-slate-200 mt-0.5">
+                    {currentUser?.tier === 'free' ? '3 Total' : 'Unlimited'}
+                  </div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-slate-950/50 border border-slate-800">
+                  <div className="text-[10px] text-slate-400">ATS Keyword Matcher</div>
+                  <div className="font-bold text-emerald-400 mt-0.5">Enabled</div>
+                </div>
+                <div className="p-2.5 rounded-xl bg-slate-950/50 border border-slate-800 col-span-2 sm:col-span-1">
+                  <div className="text-[10px] text-slate-400">Autonomous Worker</div>
+                  <div className="font-bold text-indigo-400 mt-0.5">
+                    {currentUser?.tier === 'free' ? 'Standard' : 'Parallel Multi-Thread'}
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-5 flex flex-col sm:flex-row items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenPricing?.();
+                  }}
+                  className="w-full sm:w-auto flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/30 transition-all cursor-pointer"
+                >
+                  <Crown className="h-3.5 w-3.5 text-amber-300" />
+                  <span>{currentUser?.tier === 'free' ? 'Upgrade to Pro / Executive' : 'Change Plan / View Invoices'}</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 text-xs text-slate-400 leading-relaxed">
+              <p className="font-medium text-slate-300 mb-1">Commercial Billing Guarantee</p>
+              All paid tiers come with a 30-day money-back guarantee. Subscriptions can be canceled at any time from the customer portal with zero cancellation fees.
             </div>
           </div>
         )}

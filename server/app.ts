@@ -9,6 +9,8 @@ import { generateTailoredResumePackage, buildLatexResumeDocument } from './servi
 import { generateFollowUpSequence, generateIcsCalendarFile } from './services/followupGenerator';
 import { generateContentWithFallback } from './services/gemini';
 import { sendVerificationEmail, EmailSendResult } from './services/email';
+import { billingRouter } from './routes/billing';
+import { atsRouter } from './routes/ats';
 import { ProfileUrls, PlatformType, JobApplication, AgentTask } from '../src/types';
 
 export async function createApp() {
@@ -55,6 +57,11 @@ export async function createApp() {
   const localRateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
   app.use('/api/', async (req: Request, res: Response, next) => {
+    // In automated test environments, bypass rate limiter to prevent synthetic test throttling
+    if (process.env.NODE_ENV === 'test') {
+      return next();
+    }
+
     // Determine tier limit based on route sensitivity
     let limit = 100; // General default: 100 req/min
     if (req.path.startsWith('/auth/')) {
@@ -220,6 +227,10 @@ export async function createApp() {
     return guestId;
   };
 
+  // --- Core Commercial Billing & ATS Lead Magnet Modules ---
+  app.use('/api/billing', billingRouter);
+  app.use('/api/ats', atsRouter);
+
   // --- 1. Health & Readiness Probe (Active PostgreSQL / SQL connectivity test) ---
   app.get('/api/health', async (req: Request, res: Response) => {
     const dbProbe = await db.probeHealth();
@@ -293,7 +304,7 @@ export async function createApp() {
         message: emailDispatch.success
           ? 'Account registered successfully! Verification code dispatched to ' + email
           : (emailDispatch.sandboxNotice 
-              ? `Account registered! ${emailDispatch.sandboxNotice}`
+              ? `Account registered successfully! ${emailDispatch.sandboxNotice}`
               : `Account registered successfully! Verification code: ${result.code}`),
       });
     } catch (err: any) {

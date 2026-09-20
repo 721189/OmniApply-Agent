@@ -80,14 +80,14 @@ export async function sendVerificationEmail(
 
       if (!response.ok) {
         const errorText = await response.text();
-        const isSandboxNotice = response.status === 403 && (
-          errorText.includes('testing emails') ||
-          errorText.includes('validation_error') ||
-          errorText.includes('resend.com/domains')
+        const isSandboxNotice = response.status === 403 || (
+          errorText.toLowerCase().includes('testing') ||
+          errorText.toLowerCase().includes('validation_error') ||
+          errorText.toLowerCase().includes('domain')
         );
 
         if (isSandboxNotice) {
-          console.info(`[Email Dispatch] Resend Sandbox Notice (403): Testing restriction active. Recipient (${toEmail}) is unverified on this Resend testing account. Simulation OTP code: [ ${verificationCode} ]`);
+          console.info(`[Email Dispatch] Resend Sandbox Notice (${response.status}): Testing email or unverified domain restriction for recipient ${toEmail}. Simulation OTP code: [ ${verificationCode} ]`);
         } else {
           console.info(`[Email Dispatch] Resend API notice (${response.status}):`, errorText);
         }
@@ -96,7 +96,7 @@ export async function sendVerificationEmail(
           success: false,
           provider: 'resend',
           error: `Resend error HTTP ${response.status}: ${errorText}`,
-          sandboxNotice: isSandboxNotice ? `Resend testing sandbox: verification code is ${verificationCode}` : undefined,
+          sandboxNotice: isSandboxNotice ? `Verification code is ${verificationCode}` : undefined,
           devCode: verificationCode,
         };
       }

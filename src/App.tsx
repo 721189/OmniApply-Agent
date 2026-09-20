@@ -8,6 +8,8 @@ import { WorkerTelemetryModal } from './components/WorkerTelemetryModal';
 import { AuthModal } from './components/AuthModal';
 import { UserSettingsModal } from './components/UserSettingsModal';
 import { CopilotChatDrawer } from './components/CopilotChatDrawer';
+import { PricingModal } from './components/PricingModal';
+import { AtsScanModal } from './components/AtsScanModal';
 import { 
   ProfileUrls, 
   CandidateAnalysis, 
@@ -28,6 +30,14 @@ export default function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<boolean>(false);
   const [isCopilotOpen, setIsCopilotOpen] = useState<boolean>(false);
+  const [isPricingModalOpen, setIsPricingModalOpen] = useState<boolean>(false);
+  const [isAtsScanModalOpen, setIsAtsScanModalOpen] = useState<boolean>(false);
+  const [studioInitialJob, setStudioInitialJob] = useState<{
+    jobTitle: string;
+    companyName: string;
+    jobDescription: string;
+    targetPlatform?: PlatformType;
+  } | null>(null);
   
   // Profile URLs state - default to first rich preset
   const [urls, setUrls] = useState<ProfileUrls>(
@@ -381,6 +391,22 @@ export default function App() {
     }
   };
 
+  const handleAtsApplyDossier = (
+    _resumeText: string,
+    jobTitle: string,
+    companyName: string,
+    jobDescription: string
+  ) => {
+    setStudioInitialJob({
+      jobTitle,
+      companyName,
+      jobDescription,
+      targetPlatform: 'wellfound',
+    });
+    setActiveTab('studio');
+    showToast(`Loaded "${jobTitle}" into Job Studio! Click Generate to synthesize.`, 'success');
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-indigo-500 selection:text-white font-sans">
       
@@ -392,6 +418,8 @@ export default function App() {
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
         onOpenSettings={() => setIsSettingsModalOpen(true)}
         onOpenCopilot={() => setIsCopilotOpen(true)}
+        onOpenPricing={() => setIsPricingModalOpen(true)}
+        onOpenAtsScan={() => setIsAtsScanModalOpen(true)}
         onLogout={handleLogout}
         savedJobsCount={savedJobs.length}
         hasAnalysis={!!analysis}
@@ -423,6 +451,7 @@ export default function App() {
             isGenerating={isGenerating}
             activeTask={activeTask}
             onBackToProfile={() => setActiveTab('profile')}
+            initialJob={studioInitialJob}
           />
         )}
 
@@ -477,6 +506,7 @@ export default function App() {
         currentUser={currentUser}
         onUpdateProfile={handleUpdateProfile}
         onLogout={handleLogout}
+        onOpenPricing={() => setIsPricingModalOpen(true)}
       />
 
       {/* AI Copilot & Persistent Audit Trail Drawer */}
@@ -486,6 +516,25 @@ export default function App() {
         currentUser={currentUser}
         onShowToast={showToast}
         onOpenAuth={() => setIsAuthModalOpen(true)}
+      />
+
+      {/* Commercial Pricing & Tier Upgrade Modal */}
+      <PricingModal
+        isOpen={isPricingModalOpen}
+        onClose={() => setIsPricingModalOpen(false)}
+        currentUser={currentUser}
+        onTierUpdated={(updatedUser) => {
+          setCurrentUser(updatedUser);
+          showToast(`Plan successfully updated to ${updatedUser.tier.toUpperCase()}!`, 'success');
+        }}
+        onOpenAuth={() => setIsAuthModalOpen(true)}
+      />
+
+      {/* Free Instant ATS Scorecard Lead Magnet Modal */}
+      <AtsScanModal
+        isOpen={isAtsScanModalOpen}
+        onClose={() => setIsAtsScanModalOpen(false)}
+        onApplyDossier={handleAtsApplyDossier}
       />
 
       {/* Floating Toast Notification */}
@@ -513,14 +562,40 @@ export default function App() {
       )}
 
       {/* Footer */}
-      <footer className="border-t border-slate-900 bg-slate-950/80 py-6 mt-12 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <footer className="border-t border-slate-900 bg-slate-950/80 py-8 mt-12 text-center text-xs text-slate-500">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            <span>OmniApply AI Autonomous Career Engine</span>
+            <span className="font-semibold text-slate-300">OmniApply AI Autonomous Career Engine</span>
+            <span className="text-slate-600">|</span>
+            <span className="text-slate-400">v2.0 Commercial Release</span>
           </div>
-          <div className="text-slate-400">
-            Supports <strong className="text-slate-200">Wellfound</strong>, <strong className="text-slate-200">LinkedIn</strong>, <strong className="text-slate-200">Internshala</strong> & <strong className="text-slate-200">Enterprise ATS</strong>
+
+          <div className="flex items-center gap-4 text-xs">
+            <button
+              onClick={() => setIsAtsScanModalOpen(true)}
+              className="text-slate-400 hover:text-emerald-400 transition-colors cursor-pointer"
+            >
+              Free ATS Scanner
+            </button>
+            <span className="text-slate-700">•</span>
+            <button
+              onClick={() => setIsPricingModalOpen(true)}
+              className="text-slate-400 hover:text-indigo-400 transition-colors cursor-pointer"
+            >
+              Pricing & Plans
+            </button>
+            <span className="text-slate-700">•</span>
+            <button
+              onClick={() => setIsPricingModalOpen(true)}
+              className="text-slate-400 hover:text-amber-400 transition-colors cursor-pointer"
+            >
+              30-Day Guarantee
+            </button>
+          </div>
+
+          <div className="text-slate-500 text-[11px]">
+            Engineered for <strong className="text-slate-300">Wellfound</strong>, <strong className="text-slate-300">LinkedIn</strong>, <strong className="text-slate-300">Internshala</strong> & <strong className="text-slate-300">Enterprise ATS</strong>
           </div>
         </div>
       </footer>

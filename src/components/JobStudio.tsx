@@ -86,6 +86,12 @@ interface JobStudioProps {
   isGenerating: boolean;
   activeTask: AgentTask | null;
   onBackToProfile: () => void;
+  initialJob?: {
+    jobTitle?: string;
+    companyName?: string;
+    jobDescription?: string;
+    targetPlatform?: PlatformType;
+  } | null;
 }
 
 export const JobStudio: React.FC<JobStudioProps> = ({
@@ -94,16 +100,26 @@ export const JobStudio: React.FC<JobStudioProps> = ({
   isGenerating,
   activeTask,
   onBackToProfile,
+  initialJob,
 }) => {
-  const [jobTitle, setJobTitle] = useState('Senior Full-Stack Engineer');
-  const [companyName, setCompanyName] = useState('NexusFlow AI');
-  const [targetPlatform, setTargetPlatform] = useState<PlatformType>('wellfound');
+  const [jobTitle, setJobTitle] = useState(initialJob?.jobTitle || 'Senior Full-Stack Engineer');
+  const [companyName, setCompanyName] = useState(initialJob?.companyName || 'NexusFlow AI');
+  const [targetPlatform, setTargetPlatform] = useState<PlatformType>(initialJob?.targetPlatform || 'wellfound');
   const [jobUrl, setJobUrl] = useState('');
   const [salaryExpectation, setSalaryExpectation] = useState('$140,000 – $180,000 + Equity');
   const [noticePeriod, setNoticePeriod] = useState('Immediate / 2 Weeks');
   const [jobDescription, setJobDescription] = useState(
-    SAMPLE_JOB_PRESETS?.[0]?.description || ''
+    initialJob?.jobDescription || SAMPLE_JOB_PRESETS?.[0]?.description || ''
   );
+
+  React.useEffect(() => {
+    if (initialJob) {
+      if (initialJob.jobTitle) setJobTitle(initialJob.jobTitle);
+      if (initialJob.companyName) setCompanyName(initialJob.companyName);
+      if (initialJob.jobDescription) setJobDescription(initialJob.jobDescription);
+      if (initialJob.targetPlatform) setTargetPlatform(initialJob.targetPlatform);
+    }
+  }, [initialJob]);
 
   const handleApplyJobPreset = (preset: SampleJobPreset) => {
     setJobTitle(preset.title);
