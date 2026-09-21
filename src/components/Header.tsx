@@ -13,7 +13,8 @@ import {
   Cpu,
   Crown,
   Zap,
-  Award
+  Award,
+  Home
 } from 'lucide-react';
 import { UserAccount, TabType } from '../types';
 
@@ -35,6 +36,7 @@ interface HeaderProps {
   savedJobsCount: number;
   hasAnalysis?: boolean;
   hasPreparedPackage?: boolean;
+  onBackToLanding?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -53,6 +55,7 @@ export const Header: React.FC<HeaderProps> = ({
   savedJobsCount,
   hasAnalysis,
   hasPreparedPackage,
+  onBackToLanding,
 }) => {
   const effectiveUser = currentUser !== undefined ? currentUser : user || null;
   const handleTabChange = (tab: TabType) => {
@@ -186,6 +189,17 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* User Status / Auth Controls */}
           <div className="flex items-center gap-2">
+            {onBackToLanding && (
+              <button
+                onClick={onBackToLanding}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-950/80 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 text-xs font-semibold transition-all shadow-sm cursor-pointer"
+                title="Return to Product Landing Page"
+              >
+                <Home className="h-3.5 w-3.5 text-indigo-400" />
+                <span className="hidden sm:inline">Landing Page</span>
+              </button>
+            )}
+
             {onOpenAtsScan && (
               <button
                 onClick={onOpenAtsScan}

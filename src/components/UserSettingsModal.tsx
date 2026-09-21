@@ -17,10 +17,13 @@ import {
   CreditCard,
   Crown,
   Zap,
-  Sparkles
+  Sparkles,
+  Calendar
 } from 'lucide-react';
 import { UserAccount } from '../types';
 import { apiFetch, safeJson } from '../utils/apiClient';
+import { DoodleBookingModal } from './DoodleBookingModal';
+import { RazorpayBadge } from './DoodleAccents';
 
 interface UserSettingsModalProps {
   isOpen: boolean;
@@ -54,6 +57,7 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
   // Status feedback
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [isDoodleModalOpen, setIsDoodleModalOpen] = useState(false);
 
   if (!isOpen || !currentUser) return null;
 
@@ -495,19 +499,38 @@ export const UserSettingsModal: React.FC<UserSettingsModalProps> = ({
                   className="w-full sm:w-auto flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-600/30 transition-all cursor-pointer"
                 >
                   <Crown className="h-3.5 w-3.5 text-amber-300" />
-                  <span>{currentUser?.tier === 'free' ? 'Upgrade to Pro / Executive' : 'Change Plan / View Invoices'}</span>
+                  <span>{currentUser?.tier === 'free' ? 'Upgrade to Pro / Executive' : 'Change Plan / Razorpay Checkout'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsDoodleModalOpen(true)}
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold border border-slate-700 transition-colors cursor-pointer"
+                >
+                  <Calendar className="h-3.5 w-3.5 text-indigo-400" />
+                  <span>Doodle 1:1 Booking</span>
                 </button>
               </div>
             </div>
 
-            <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 text-xs text-slate-400 leading-relaxed">
-              <p className="font-medium text-slate-300 mb-1">Commercial Billing Guarantee</p>
-              All paid tiers come with a 30-day money-back guarantee. Subscriptions can be canceled at any time from the customer portal with zero cancellation fees.
+            <div className="p-4 rounded-2xl bg-slate-950/70 border border-slate-800 flex items-center justify-between gap-4 text-xs text-slate-400 leading-relaxed">
+              <div>
+                <p className="font-medium text-slate-300 mb-0.5">Commercial Billing & Security</p>
+                <span>Subscriptions are billed securely with Razorpay (UPI, Netbanking & Cards) with self-serve plan management and cancellation anytime.</span>
+              </div>
+              <RazorpayBadge className="shrink-0" />
             </div>
           </div>
         )}
 
       </div>
+
+      {/* Doodle Booking Modal */}
+      <DoodleBookingModal
+        isOpen={isDoodleModalOpen}
+        onClose={() => setIsDoodleModalOpen(false)}
+        currentUser={currentUser}
+      />
     </div>
   );
 };

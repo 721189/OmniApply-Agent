@@ -27,6 +27,7 @@ import {
 import { JobApplication, JobStatus, PlatformType, JobOfferDetails } from '../types';
 import { apiFetch } from '../utils/apiClient';
 import { OfferCalculatorModal } from './OfferCalculatorModal';
+import { DoodleBookingModal } from './DoodleBookingModal';
 
 interface JobTrackerProps {
   jobs: JobApplication[];
@@ -63,6 +64,8 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
   const [noteInput, setNoteInput] = useState('');
   const [selectedOfferJob, setSelectedOfferJob] = useState<JobApplication | null>(null);
   const [isOfferModalOpen, setIsOfferModalOpen] = useState(false);
+  const [selectedDoodleJob, setSelectedDoodleJob] = useState<JobApplication | null>(null);
+  const [isDoodleModalOpen, setIsDoodleModalOpen] = useState(false);
 
   const handleSaveOfferDetails = async (jobId: string, offerDetails: JobOfferDetails) => {
     try {
@@ -234,6 +237,18 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
           </button>
 
           <button
+            onClick={() => {
+              setSelectedDoodleJob(null);
+              setIsDoodleModalOpen(true);
+            }}
+            className="flex items-center gap-1.5 px-3 py-2 bg-slate-950 border border-slate-800 hover:border-indigo-500/40 rounded-xl text-xs text-indigo-300 hover:text-indigo-200 transition-colors"
+            title="Doodle Scheduling"
+          >
+            <Calendar className="h-3.5 w-3.5 text-indigo-400" />
+            <span className="hidden sm:inline">Doodle Schedule</span>
+          </button>
+
+          <button
             onClick={onCreateNewApplication}
             className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-600/30 transition-all"
           >
@@ -306,6 +321,20 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
                           >
                             <Scale className="h-3.5 w-3.5" />
                             <span>Evaluate & Negotiate Offer</span>
+                          </button>
+                        )}
+
+                        {/* Interviewing Doodle Coordination Button */}
+                        {job.status === 'interviewing' && (
+                          <button
+                            onClick={() => {
+                              setSelectedDoodleJob(job);
+                              setIsDoodleModalOpen(true);
+                            }}
+                            className="w-full flex items-center justify-center gap-1.5 py-1.5 px-2 bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-300 border border-indigo-500/30 rounded-xl text-[10px] font-bold transition shadow-sm"
+                          >
+                            <Calendar className="h-3 w-3 text-indigo-400" />
+                            <span>Schedule Interview via Doodle</span>
                           </button>
                         )}
 
@@ -474,6 +503,17 @@ export const JobTracker: React.FC<JobTrackerProps> = ({
         job={selectedOfferJob}
         onSaveOfferDetails={handleSaveOfferDetails}
         candidateName={candidateName}
+      />
+
+      {/* Doodle Booking & Scheduling Modal */}
+      <DoodleBookingModal
+        isOpen={isDoodleModalOpen}
+        onClose={() => {
+          setIsDoodleModalOpen(false);
+          setSelectedDoodleJob(null);
+        }}
+        currentUser={candidateName ? { name: candidateName } as any : null}
+        defaultTopic={selectedDoodleJob ? `${selectedDoodleJob.companyName} - ${selectedDoodleJob.jobTitle} Interview` : undefined}
       />
 
     </div>

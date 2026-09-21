@@ -10,6 +10,8 @@ import { UserSettingsModal } from './components/UserSettingsModal';
 import { CopilotChatDrawer } from './components/CopilotChatDrawer';
 import { PricingModal } from './components/PricingModal';
 import { AtsScanModal } from './components/AtsScanModal';
+import { DoodleBookingModal } from './components/DoodleBookingModal';
+import { LandingPage } from './components/LandingPage';
 import { 
   ProfileUrls, 
   CandidateAnalysis, 
@@ -25,6 +27,12 @@ import { AlertCircle, CheckCircle2, Sparkles } from 'lucide-react';
 import { apiFetch } from './utils/apiClient';
 
 export default function App() {
+  const [currentView, setCurrentView] = useState<'landing' | 'app'>(() => {
+    if (typeof window !== 'undefined' && window.location.hash === '#app') {
+      return 'app';
+    }
+    return 'landing';
+  });
   const [activeTab, setActiveTab] = useState<TabType>('profile');
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
@@ -32,6 +40,7 @@ export default function App() {
   const [isCopilotOpen, setIsCopilotOpen] = useState<boolean>(false);
   const [isPricingModalOpen, setIsPricingModalOpen] = useState<boolean>(false);
   const [isAtsScanModalOpen, setIsAtsScanModalOpen] = useState<boolean>(false);
+  const [isDoodleModalOpen, setIsDoodleModalOpen] = useState<boolean>(false);
   const [studioInitialJob, setStudioInitialJob] = useState<{
     jobTitle: string;
     companyName: string;
@@ -127,10 +136,39 @@ export default function App() {
     }
   };
 
+  const handleSwitchToApp = () => {
+    setCurrentView('app');
+    if (typeof window !== 'undefined') {
+      window.location.hash = '#app';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handleSwitchToLanding = () => {
+    setCurrentView('landing');
+    if (typeof window !== 'undefined') {
+      window.location.hash = '';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handleSelectPresetJob = (job: {
+    jobTitle: string;
+    companyName: string;
+    jobDescription: string;
+    targetPlatform: PlatformType;
+  }) => {
+    setStudioInitialJob(job);
+    handleSwitchToApp();
+    setActiveTab('studio');
+    showToast(`Loaded "${job.jobTitle}" into Job Studio!`, 'success');
+  };
+
   const handleAuthSuccess = (user: UserAccount) => {
     setCurrentUser(user);
     showToast(`Welcome, ${user.name}!`, 'success');
     fetchSavedJobs();
+    handleSwitchToApp();
   };
 
   const handleLogout = async () => {
@@ -403,93 +441,156 @@ export default function App() {
       jobDescription,
       targetPlatform: 'wellfound',
     });
+    handleSwitchToApp();
     setActiveTab('studio');
     showToast(`Loaded "${jobTitle}" into Job Studio! Click Generate to synthesize.`, 'success');
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-indigo-500 selection:text-white font-sans">
-      
-      {/* Navigation Header */}
-      <Header
-        activeTab={activeTab}
-        onSelectTab={setActiveTab}
-        currentUser={currentUser}
-        onOpenAuthModal={() => setIsAuthModalOpen(true)}
-        onOpenSettings={() => setIsSettingsModalOpen(true)}
-        onOpenCopilot={() => setIsCopilotOpen(true)}
-        onOpenPricing={() => setIsPricingModalOpen(true)}
-        onOpenAtsScan={() => setIsAtsScanModalOpen(true)}
-        onLogout={handleLogout}
-        savedJobsCount={savedJobs.length}
-        hasAnalysis={!!analysis}
-        hasPreparedPackage={!!currentApplication}
-      />
-
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        
-        {/* Profile Ingestion & Analysis Hub */}
-        {activeTab === 'profile' && (
-          <ProfileHub
-            urls={urls}
-            setUrls={setUrls}
-            analysis={analysis}
-            onRunAnalysis={handleRunAnalysis}
-            isAnalyzing={isAnalyzing}
-            activeTask={activeTask}
-            onProceedToStudio={() => setActiveTab('studio')}
-            userName={currentUser?.name || 'Candidate'}
+    <>
+      {currentView === 'landing' ? (
+        <LandingPage
+          onLaunchApp={handleSwitchToApp}
+          onOpenAuth={() => setIsAuthModalOpen(true)}
+          onOpenAtsScan={() => setIsAtsScanModalOpen(true)}
+          onOpenPricing={() => setIsPricingModalOpen(true)}
+          onOpenDoodle={() => setIsDoodleModalOpen(true)}
+          onSelectPresetJob={handleSelectPresetJob}
+          currentUser={currentUser}
+        />
+      ) : (
+        <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-indigo-500 selection:text-white font-sans">
+          
+          {/* Navigation Header */}
+          <Header
+            activeTab={activeTab}
+            onSelectTab={setActiveTab}
+            currentUser={currentUser}
+            onOpenAuthModal={() => setIsAuthModalOpen(true)}
+            onOpenSettings={() => setIsSettingsModalOpen(true)}
+            onOpenCopilot={() => setIsCopilotOpen(true)}
+            onOpenPricing={() => setIsPricingModalOpen(true)}
+            onOpenAtsScan={() => setIsAtsScanModalOpen(true)}
+            onLogout={handleLogout}
+            savedJobsCount={savedJobs.length}
+            hasAnalysis={!!analysis}
+            hasPreparedPackage={!!currentApplication}
+            onBackToLanding={handleSwitchToLanding}
           />
-        )}
 
-        {/* Application Studio */}
-        {activeTab === 'studio' && (
-          <JobStudio
-            analysis={analysis}
-            onGeneratePackage={handleGeneratePackage}
-            isGenerating={isGenerating}
-            activeTask={activeTask}
-            onBackToProfile={() => setActiveTab('profile')}
-            initialJob={studioInitialJob}
-          />
-        )}
+          {/* Main Content Area */}
+          <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            
+            {/* Profile Ingestion & Analysis Hub */}
+            {activeTab === 'profile' && (
+              <ProfileHub
+                urls={urls}
+                setUrls={setUrls}
+                analysis={analysis}
+                onRunAnalysis={handleRunAnalysis}
+                isAnalyzing={isAnalyzing}
+                activeTask={activeTask}
+                onProceedToStudio={() => setActiveTab('studio')}
+                userName={currentUser?.name || 'Candidate'}
+              />
+            )}
 
-        {/* Systematic Application Reviewer & Inspector */}
-        {activeTab === 'review' && (
-          <ApplicationReviewer
-            currentJob={currentApplication}
-            onUpdateJob={handleUpdateJob}
-            onMarkAsApplied={(id) => handleUpdateJobStatus(id, 'applied')}
-            onNavigateToTracker={() => setActiveTab('tracker')}
-          />
-        )}
+            {/* Application Studio */}
+            {activeTab === 'studio' && (
+              <JobStudio
+                analysis={analysis}
+                onGeneratePackage={handleGeneratePackage}
+                isGenerating={isGenerating}
+                activeTask={activeTask}
+                onBackToProfile={() => setActiveTab('profile')}
+                initialJob={studioInitialJob}
+              />
+            )}
 
-        {/* Job Applications History & Tracker */}
-        {activeTab === 'tracker' && (
-          <JobTracker
-            jobs={savedJobs}
-            onSelectJob={(job) => {
-              setCurrentApplication(job);
-              setActiveTab('review');
-            }}
-            onUpdateStatus={handleUpdateJobStatus}
-            onDeleteJob={handleDeleteJob}
-            onCreateNewApplication={() => setActiveTab('studio')}
-            onRefreshJobs={fetchSavedJobs}
-            candidateName={currentUser?.name || analysis?.fullName || 'Alex Chen'}
-          />
-        )}
+            {/* Systematic Application Reviewer & Inspector */}
+            {activeTab === 'review' && (
+              <ApplicationReviewer
+                currentJob={currentApplication}
+                onUpdateJob={handleUpdateJob}
+                onMarkAsApplied={(id) => handleUpdateJobStatus(id, 'applied')}
+                onNavigateToTracker={() => setActiveTab('tracker')}
+              />
+            )}
 
-        {/* Async Pipeline Workers Telemetry */}
-        {activeTab === 'telemetry' && (
-          <WorkerTelemetryModal
-            tasks={telemetryTasks}
-            onRefreshTasks={fetchTelemetryTasks}
-          />
-        )}
+            {/* Job Applications History & Tracker */}
+            {activeTab === 'tracker' && (
+              <JobTracker
+                jobs={savedJobs}
+                onSelectJob={(job) => {
+                  setCurrentApplication(job);
+                  setActiveTab('review');
+                }}
+                onUpdateStatus={handleUpdateJobStatus}
+                onDeleteJob={handleDeleteJob}
+                onCreateNewApplication={() => setActiveTab('studio')}
+                onRefreshJobs={fetchSavedJobs}
+                candidateName={currentUser?.name || analysis?.fullName || 'Alex Chen'}
+              />
+            )}
 
-      </main>
+            {/* Async Pipeline Workers Telemetry */}
+            {activeTab === 'telemetry' && (
+              <WorkerTelemetryModal
+                tasks={telemetryTasks}
+                onRefreshTasks={fetchTelemetryTasks}
+              />
+            )}
+
+          </main>
+
+          {/* Footer */}
+          <footer className="border-t border-slate-900 bg-slate-950/80 py-8 mt-12 text-center text-xs text-slate-500">
+            <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                <span className="font-semibold text-slate-300">OmniApply AI Autonomous Career Engine</span>
+                <span className="text-slate-600">|</span>
+                <span className="text-slate-400">v2.0 Commercial Release</span>
+              </div>
+
+              <div className="flex items-center gap-4 text-xs">
+                <button
+                  onClick={handleSwitchToLanding}
+                  className="text-slate-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  Landing Overview
+                </button>
+                <span className="text-slate-700">•</span>
+                <button
+                  onClick={() => setIsAtsScanModalOpen(true)}
+                  className="text-slate-400 hover:text-emerald-400 transition-colors cursor-pointer"
+                >
+                  Free ATS Scanner
+                </button>
+                <span className="text-slate-700">•</span>
+                <button
+                  onClick={() => setIsPricingModalOpen(true)}
+                  className="text-slate-400 hover:text-indigo-400 transition-colors cursor-pointer"
+                >
+                  Pricing & Plans
+                </button>
+                <span className="text-slate-700">•</span>
+                <button
+                  onClick={() => setIsPricingModalOpen(true)}
+                  className="text-slate-400 hover:text-amber-400 transition-colors cursor-pointer"
+                >
+                  Honest Pricing
+                </button>
+              </div>
+
+              <div className="text-slate-500 text-[11px]">
+                Engineered for <strong className="text-slate-300">Wellfound</strong>, <strong className="text-slate-300">LinkedIn</strong>, <strong className="text-slate-300">Internshala</strong> & <strong className="text-slate-300">Enterprise ATS</strong>
+              </div>
+            </div>
+          </footer>
+
+        </div>
+      )}
 
       {/* Auth & Verification Modal */}
       <AuthModal
@@ -537,6 +638,14 @@ export default function App() {
         onApplyDossier={handleAtsApplyDossier}
       />
 
+      {/* Doodle 1:1 Executive Advisory Modal */}
+      <DoodleBookingModal
+        isOpen={isDoodleModalOpen}
+        onClose={() => setIsDoodleModalOpen(false)}
+        candidateName={currentUser?.name || analysis?.fullName || 'Candidate'}
+        roleTarget="Senior Software Engineer"
+      />
+
       {/* Floating Toast Notification */}
       {toast && (
         <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-5 duration-300">
@@ -560,46 +669,6 @@ export default function App() {
           </div>
         </div>
       )}
-
-      {/* Footer */}
-      <footer className="border-t border-slate-900 bg-slate-950/80 py-8 mt-12 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            <span className="font-semibold text-slate-300">OmniApply AI Autonomous Career Engine</span>
-            <span className="text-slate-600">|</span>
-            <span className="text-slate-400">v2.0 Commercial Release</span>
-          </div>
-
-          <div className="flex items-center gap-4 text-xs">
-            <button
-              onClick={() => setIsAtsScanModalOpen(true)}
-              className="text-slate-400 hover:text-emerald-400 transition-colors cursor-pointer"
-            >
-              Free ATS Scanner
-            </button>
-            <span className="text-slate-700">•</span>
-            <button
-              onClick={() => setIsPricingModalOpen(true)}
-              className="text-slate-400 hover:text-indigo-400 transition-colors cursor-pointer"
-            >
-              Pricing & Plans
-            </button>
-            <span className="text-slate-700">•</span>
-            <button
-              onClick={() => setIsPricingModalOpen(true)}
-              className="text-slate-400 hover:text-amber-400 transition-colors cursor-pointer"
-            >
-              30-Day Guarantee
-            </button>
-          </div>
-
-          <div className="text-slate-500 text-[11px]">
-            Engineered for <strong className="text-slate-300">Wellfound</strong>, <strong className="text-slate-300">LinkedIn</strong>, <strong className="text-slate-300">Internshala</strong> & <strong className="text-slate-300">Enterprise ATS</strong>
-          </div>
-        </div>
-      </footer>
-
-    </div>
+    </>
   );
 }
