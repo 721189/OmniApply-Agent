@@ -1,202 +1,325 @@
-# 🚀 OmniApply AI — Autonomous Career Intelligence & Multi-Platform Application Engine
+# 🚀 OmniApply AI — Autonomous Engineering Career Engine
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)](https://reactjs.org/)
 [![Express](https://img.shields.io/badge/Express-4.x-000000?style=flat-square&logo=express&logoColor=white)](https://expressjs.com/)
 [![Tailwind CSS](https://img.shields.io/badge/TailwindCSS-v4-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 [![Gemini](https://img.shields.io/badge/Gemini_2.5_Flash-Google_AI-4285F4?style=flat-square&logo=google&logoColor=white)](https://ai.google.dev/)
-[![Status](https://img.shields.io/badge/Status-Production_Ready-emerald?style=flat-square)]()
+[![Status](https://img.shields.io/badge/Release-v2.0_Commercial-emerald?style=flat-square)]()
+[![License](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
 
-**OmniApply AI** is an end-to-end autonomous career intelligence engine and multi-platform application compiler. It aggregates candidate public footprints across **GitHub, LeetCode, and Substack**, synthesizes a **Unified Candidate Dossier**, and generates tailored, ATS-optimized application packages for **Wellfound, LinkedIn, Internshala, Greenhouse, and Lever**.
+**OmniApply AI** is an engineering-first career assistant and application preparation engine. It ingests your authentic technical footprint across **GitHub, LeetCode, Substack, LinkedIn, and Portfolio sites**, parses job requirements, and generates ATS-optimized resumes, platform-specific pitches (**Wellfound, LinkedIn, Internshala, Greenhouse, Lever**), 4-stage recruiter follow-ups with calendar sync, and interactive offer negotiation models.
 
 ---
 
 ## 📑 Table of Contents
 
-- [🧩 System Architecture & Workflow](#-system-architecture--workflow)
+- [📊 Interactive System Architecture & Infographics](#-interactive-system-architecture--infographics)
+  - [1. End-to-End Application Synthesis Pipeline](#1-end-to-end-application-synthesis-pipeline)
+  - [2. Multi-Signal Footprint Ingestion Flow](#2-multi-signal-footprint-ingestion-flow)
+  - [3. Razorpay Checkout & Doodle Advisory Flow](#3-razorpay-checkout--doodle-advisory-flow)
+  - [4. Job Application State Machine](#4-job-application-state-machine)
+- [⚖️ Honest Comparison: OmniApply vs. Generic AI Prompting](#️-honest-comparison-omniapply-vs-generic-ai-prompting)
 - [🌟 Key Core Capabilities](#-key-core-capabilities)
-  - [1. Multi-Platform Signal Ingestion & Live Scrapers](#1-multi-platform-signal-ingestion--live-scrapers)
-  - [2. ATS-Compliant LaTeX & PDF Resume Generator](#2-ats-compliant-latex--pdf-resume-generator)
-  - [3. Recruiter Follow-up Drip Sequencer & .ICS Sync](#3-recruiter-follow-up-drip-sequencer--ics-sync)
-  - [4. 📊 Salary Negotiation & Offer Evaluation Calculator](#4--salary-negotiation--offer-evaluation-calculator)
-  - [5. Platform-Tailored Application Adapters](#5-platform-tailored-application-adapters)
-  - [6. Real-Time Async Pipeline & Worker Telemetry](#6-real-time-async-pipeline--worker-telemetry)
-  - [7. Dual-View Kanban & Table Pipeline](#7-dual-view-kanban--table-pipeline)
-- [📡 API Reference](#-api-reference)
-- [🛠️ Tech Stack & Dependencies](#-tech-stack--dependencies)
-- [🚀 Local Development & Setup](#-local-development--setup)
-- [🤝 Contributing](#-contributing)
-- [💡 Honest Disclosures & Ethics](#-honest-disclosures--ethics)
+  - [1. Real Signal Ingestion & Live Scrapers](#1-real-signal-ingestion--live-scrapers)
+  - [2. ATS-Compliant Single-Column Resume & LaTeX Generator](#2-ats-compliant-single-column-resume--latex-generator)
+  - [3. Recruiter Follow-up Drip Sequencer & RFC 5545 .ICS Sync](#3-recruiter-follow-up-drip-sequencer--rfc-5545-ics-sync)
+  - [4. Salary Negotiation & 409A Equity Valuation Calculator](#4-salary-negotiation--409a-equity-valuation-calculator)
+  - [5. Platform-Tailored Adapters (Wellfound, LinkedIn, Internshala)](#5-platform-tailored-adapters-wellfound-linkedin-internshala)
+  - [6. Razorpay Commercial Billing & Doodle 1:1 Advisory](#6-razorpay-commercial-billing--doodle-11-advisory)
+  - [7. Fail-Closed PostgreSQL & Local SQLite WASM Engine](#7-fail-closed-postgresql--local-sqlite-wasm-engine)
+- [📡 Comprehensive API Reference](#-comprehensive-api-reference)
+- [🛠️ Tech Stack & Security Model](#️-tech-stack--security-model)
+- [🚀 Local Development & Quickstart](#-local-development--quickstart)
+- [💡 Honest Disclosures & Operational Constraints](#-honest-disclosures--operational-constraints)
 
 ---
 
-## 🧩 System Architecture & Workflow
+## 📊 Interactive System Architecture & Infographics
 
+### 1. End-to-End Application Synthesis Pipeline
+
+```mermaid
+flowchart TD
+    subgraph SignalIngestion["1. Multi-Platform Ingestion"]
+        GH["GitHub REST API<br/>• Repos & PRs<br/>• Language AST<br/>• Commit cadence"]
+        LC["LeetCode GraphQL<br/>• DSA Percentiles<br/>• Tag Breakdown<br/>• Solved Totals"]
+        SS["Substack RSS<br/>• Technical Essays<br/>• Architecture Posts<br/>• Voice DNA"]
+        LI["LinkedIn / Portfolio<br/>• Work Experience<br/>• Education & Bio<br/>• Career Timeline"]
+    end
+
+    subgraph NormalizationEngine["2. Candidate Intelligence Core"]
+        NORM["Signal Sanitizer & Scraper Fallback"]
+        DOSSIER["Unified Candidate Dossier<br/>• Verified Skills Matrix<br/>• STAR Project Bullets<br/>• Authentic Code Citations"]
+    end
+
+    subgraph JobAnalysis["3. Job Posting Analysis"]
+        JD["Job Description Input<br/>(URL or Text)"]
+        PARSE["Prerequisite Parser<br/>• Hard Tech Stack<br/>• Tooling Minimums<br/>• Soft Qualifications"]
+        GAP["Keyword & Density Matcher<br/>• Gap Analysis<br/>• Relevance Rubric"]
+    end
+
+    subgraph SynthesisEngine["4. Gemini 2.5 Flash Synthesis Engine"]
+        PROMPT["Structured Grounding Prompt<br/>(Strict Anti-Fabrication Constraints)"]
+        GEN["Multi-Artifact Compilation"]
+    end
+
+    subgraph ArtifactGeneration["5. Tailored Application Package"]
+        RES["ATS Single-Column Resume<br/>• Markdown & LaTeX<br/>• Real Code PR Citations"]
+        PITCH["Platform-Specific Pitches<br/>• Wellfound Founder Note<br/>• LinkedIn Recruiter InMail<br/>• Internshala Answers"]
+        FOLLOW["4-Stage Follow-up Cadence<br/>• Day 3, 7, 14, 21<br/>• RFC 5545 .ICS Calendar File"]
+        NEG["Compensation Planner<br/>• Levels.fyi Market Percentiles<br/>• 409A Equity Vesting Model"]
+    end
+
+    GH --> NORM
+    LC --> NORM
+    SS --> NORM
+    LI --> NORM
+    NORM --> DOSSIER
+
+    JD --> PARSE --> GAP
+    DOSSIER & GAP --> PROMPT
+    PROMPT --> GEN
+
+    GEN --> RES
+    GEN --> PITCH
+    GEN --> FOLLOW
+    GEN --> NEG
 ```
-                                  OMNIAPPLY AI ARCHITECTURE
-                                  
-   +---------------------------------------------------------------------------------+
-   |                                1. SIGNAL INGESTION                              |
-   |                                                                                 |
-   |   [ GitHub API ]       [ LeetCode GraphQL ]      [ Substack RSS ]     [ Portfolio Pages ]
-   |   Repos, PRs, Langs    DSA Ranking, Badges      Writings, Essays      Tenure & Bio  
-   +---------------------------------------+-----------------------------------------+
-                                           |
-                                           v
-   +---------------------------------------------------------------------------------+
-   |                           2. CANDIDATE INTELLIGENCE                             |
-   |                                                                                 |
-   |                       Gemini 2.5 Flash / Analyzer Engine                        |
-   |                                       |                                         |
-   |                                       v                                         |
-   |                             Unified Candidate Dossier                           |
-   |       * Skills Matrix   * Star Repos   * DSA Metrics   * Voice DNA   * KPIs     |
-   +---------------------------------------+-----------------------------------------+
-                                           |
-                                           v
-   +---------------------------------------------------------------------------------+
-   |                              3. JOB STUDIO & ADAPTERS                           |
-   |                                                                                 |
-   |   [ Wellfound Adapter ]   [ LinkedIn InMail ]   [ Internshala ]   [ ATS (Greenhouse) ]
-   |   Founder pitch + equity  Recruiter pitch 120w  Why-hire Q&A      XYZ-formula bullets 
-   +---------------------------------------+-----------------------------------------+
-                                           |
-        +----------------------------------+----------------------------------+
-        |                                  |                                  |
-        v                                  v                                  v
-+-----------------------+      +-----------------------+      +-----------------------+
-|  4. ATS LATEX ENGINE  |      |  5. FOLLOW-UP CADENCE |      |  6. OFFER NEGOTIATOR  |
-|                       |      |                       |      |                       |
-| Overleaf-ready .tex   |      | 4-Stage Drip Sequence |      | Market percentiles    |
-| Single-page layout    |      | InMail / Email copy   |      | Equity vesting model  |
-| Clean PDF print view  |      | RFC 5545 .ICS sync    |      | Counter-offer scripts |
-+-----------------------+      +-----------------------+      +-----------------------+
-        |                                  |                                  |
-        +----------------------------------+----------------------------------+
-                                           |
-                                           v
-   +---------------------------------------------------------------------------------+
-   |                             7. LIFECYCLE & TRACKING                             |
-   |                                                                                 |
-   |     Dual-View Kanban Board  <--->  Data Table View  <--->  CSV / JSON Export    |
-   |     Prepared  -->  Applied  -->  Interviewing  -->  Offer Received  --> Archive |
-   +---------------------------------------------------------------------------------+
+
+---
+
+### 2. Multi-Signal Footprint Ingestion Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Candidate as User / Candidate
+    participant Client as OmniApply React UI
+    participant Server as Express / Node API
+    participant Scrapers as Multi-Platform Scraper Engine
+    participant Gemini as Gemini 2.5 Flash
+    participant DB as SQLite WASM / PostgreSQL
+
+    Candidate->>Client: Input Profile URLs (GitHub, LeetCode, Substack)
+    Client->>Server: POST /api/analyze-profiles
+    Server->>Scrapers: Trigger Non-Blocking Ingestion (4s timeout)
+    
+    par Query GitHub API
+        Scrapers->>Scrapers: Extract Public Repos, Languages, Stars
+    and Query LeetCode GraphQL
+        Scrapers->>Scrapers: Extract Solved Problems & Rating
+    and Parse Substack RSS
+        Scrapers->>Scrapers: Extract Technical Writing Topics
+    end
+
+    Scrapers-->>Server: Normalized Technical Signals
+    Server->>Gemini: Synthesize Unified Candidate Dossier
+    Gemini-->>Server: Verified Skills Matrix + STAR Experience
+    Server->>DB: Persist Candidate Dossier (User Session)
+    Server-->>Client: 200 OK with Candidate Analysis
+    Client-->>Candidate: Render Skills Radar & Dossier Preview
 ```
+
+---
+
+### 3. Razorpay Checkout & Doodle Advisory Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Candidate as Candidate
+    participant UI as Pricing & Booking Modal
+    participant Backend as Express Commerce API
+    participant Razorpay as Razorpay API Gateway
+    participant Doodle as Doodle Calendar Sync
+
+    Candidate->>UI: Select Plan (Starter / Pro / Career Suite)
+    UI->>Backend: POST /api/razorpay/create-order { tier, currency, cycle }
+    Backend->>Razorpay: Initialize Order (INR / USD with HMAC signature key)
+    Razorpay-->>Backend: Order Object (id, amount, currency)
+    Backend-->>UI: Order Metadata + Checkout Configuration
+    UI->>Candidate: Open Razorpay Modal (UPI, Netbanking, Cards)
+    
+    Candidate->>UI: Authorize Payment
+    UI->>Backend: POST /api/razorpay/verify-payment { order_id, payment_id, signature }
+    Backend->>Backend: Constant-Time HMAC-SHA256 Signature Verification
+    Backend->>Backend: Upgrade User Subscription Tier in Database
+    Backend-->>UI: 200 OK + Instant Feature Unlock
+
+    opt 1:1 Executive Advisory (Doodle)
+        Candidate->>UI: Schedule 1:1 Offer Strategy Session
+        UI->>Backend: POST /api/doodle/book-session { name, email, targetRole, timeSlot }
+        Backend->>Doodle: Create Calendar Reservation & Sync RFC 5545 .ICS
+        Backend-->>UI: 200 OK + Confirmation & Calendar Invite
+        UI-->>Candidate: Display Google/Apple Calendar Add Button
+    end
+```
+
+---
+
+### 4. Job Application State Machine
+
+```mermaid
+stateDiagram-v2
+    [*] --> Prepared : Generate Application Package
+    
+    Prepared --> InReview : Candidate Inspects Resume & Pitch
+    InReview --> Prepared : Refine Draft / Re-prompt
+    
+    InReview --> Applied : Candidate Submits to Employer
+    
+    Applied --> Screening : Recruiter Outreach Received
+    Applied --> FollowUpDrip : No response after 3/7/14 days
+    FollowUpDrip --> Applied : Recruiter Follow-up Dispatched via .ICS
+    
+    Screening --> TechnicalInterview : Pass Recruiter Screen
+    TechnicalInterview --> OfferReceived : Pass Onsite / Coding Rounds
+    
+    OfferReceived --> Negotiating : Run 409A Equity & Salary Calculator
+    Negotiating --> OfferAccepted : Counter-Offer Accepted
+    Negotiating --> Archived : Offer Declined / Withdrawn
+    
+    Applied --> Rejected : Employer Rejection
+    Rejected --> Archived : Archive Record
+    OfferAccepted --> [*]
+    Archived --> [*]
+```
+
+---
+
+## ⚖️ Honest Comparison: OmniApply vs. Generic AI Prompting
+
+| Capability | Generic ChatGPT / LLM Prompt | OmniApply AI Engine | Why It Matters |
+|---|:---:|:---:|---|
+| **Code Footprint Ingestion** | ❌ None (Manual copy-paste) | ✅ Direct GitHub API & repo analysis | Cites real commit histories, language breakdowns, and architecture. |
+| **Hallucination Prevention** | ❌ High (Invented metrics & jobs) | ✅ Strict Grounding on public profiles | Prevents awkward interview situations where you cannot defend your resume. |
+| **Platform Pitch Specialization** | ❌ Generic cover letter output | ✅ Wellfound, LinkedIn, Internshala, ATS | Tailors length, tone, and format to each platform's culture. |
+| **ATS OCR Structure** | ⚠️ Often introduces tables/columns | ✅ Strict Single-Column standard layout | Ensures 100% readability across Greenhouse, Lever, and Workday. |
+| **Follow-up Timing** | ❌ None | ✅ 4-Stage Cadence + RFC 5545 `.ics` | Automatically populates follow-up reminders in your calendar. |
+| **Offer Negotiation Model** | ⚠️ Generic tips | ✅ Levels.fyi Percentiles + 409A Equity math | Evaluates tax, vesting cliffs, and startup dilution scenarios. |
+| **Data Privacy** | ❌ Uploaded to 3P training sets | ✅ Self-Serve Account & Data Export/Purge | Full GDPR-compliant data export and deletion at any time. |
 
 ---
 
 ## 🌟 Key Core Capabilities
 
-### 1. Multi-Platform Signal Ingestion & Live Scrapers
-- **Live Scrapers (`/server/scrapers.ts`)**:
-  - **GitHub**: Queries public REST APIs for language distributions, star counts, pinned repos, and commit cadence.
-  - **LeetCode**: Queries public GraphQL endpoints to extract total problems solved, contest rating, and global ranking percentiles.
-  - **Substack**: Parses RSS feeds to extract article titles, publication themes, and technical writing depth.
-  - **Non-blocking Resiliency**: Implements 4-second `AbortController` timeouts with deterministic fallback models if network rate limits are encountered.
+### 1. Real Signal Ingestion & Live Scrapers
+- **GitHub REST API**: Queries public repositories, stars, language breakdowns, and recent activity.
+- **LeetCode GraphQL API**: Extracts total solved count, global ranking, and category metrics (Algorithms, Database, Shell).
+- **Substack RSS**: Parses published articles to analyze writing focus and domain expertise.
+- **Resilient Fallback Mode**: All scrapers feature a strict 4-second timeout with deterministic parsing fallback to prevent UI blocking when third-party endpoints rate-limit requests.
 
-### 2. ATS-Compliant LaTeX & PDF Resume Generator
-- Generates publication-quality, ATS-optimized single-page LaTeX resumes ready for **Overleaf** or local `pdflatex` compilation.
-- Features:
-  - Strict ATS formatting without tables, multi-column blocks, or graphics that break OCR scanners.
-  - XYZ-formula bullet formatting (`Accomplished [X], measured by [Y], by doing [Z]`).
-  - Embedded keyword density matching target job descriptions.
-  - Built-in live browser PDF print previewer and one-click `.tex` export.
+### 2. ATS-Compliant Single-Column Resume & LaTeX Generator
+- **Clean Single-Column Layout**: Strict avoidance of complex multi-column tables, text boxes, or embedded vector graphics that break legacy ATS OCR engines.
+- **XYZ Formula Formatting**: Rewrites engineering bullet points using Google's XYZ formula: `Accomplished [X], measured by [Y], by doing [Z]`.
+- **LaTeX Source Export**: One-click `.tex` export compatible with Overleaf and `pdflatex`.
 
-### 3. Recruiter Follow-up Drip Sequencer & .ICS Sync
-- Compiles a proactive 4-stage follow-up schedule:
-  1. **Day 3**: Subtle value-add touchpoint (sharing relevant open-source repo or article).
-  2. **Day 7**: Direct recruiter InMail / email check-in.
-  3. **Day 14**: Secondary project update & traction milestone.
-  4. **Day 21**: Graceful breakup / future-pipeline note.
-- **One-Click Calendar Sync**: Generates RFC 5545 standard `.ics` calendar files that import directly into **Google Calendar, Apple Calendar, and Microsoft Outlook**.
+### 3. Recruiter Follow-up Drip Sequencer & RFC 5545 .ICS Sync
+- **Stage 1 (Day 3)**: Subtle value-add message sharing relevant open-source work or technical insights.
+- **Stage 2 (Day 7)**: Direct recruiter check-in.
+- **Stage 3 (Day 14)**: Project milestone and traction update.
+- **Stage 4 (Day 21)**: Professional closeout note.
+- **Calendar Reminders**: Generates downloadable `.ics` files that import directly into **Google Calendar, Apple Calendar, and Microsoft Outlook**.
 
-### 4. 📊 Salary Negotiation & Offer Evaluation Calculator
-- **Market Benchmarking**: Evaluates base compensation, sign-on bonuses, and equity grants against real-world percentiles (Levels.fyi / Glassdoor data points).
-- **Location Tier Support**: Tier 1 (SF Bay Area, NYC, Seattle), Tier 2 (Austin, Boston, London, Toronto), Tier 3 (Remote, Berlin, Bangalore).
-- **Equity Growth Modeling**: Calculates Year 1 Total Compensation (TC) vs. Recurring TC with 4-year cliff vesting and startup valuation multipliers (1x to 5x).
-- **Counter-Offer Email Generator**: Generates professional, diplomatic negotiation scripts tailored for:
-  - Multiple competing offers.
-  - Market percentile under-compensation.
-  - Flexible equity-to-base rebalancing.
+### 4. Salary Negotiation & 409A Equity Valuation Calculator
+- **Market Benchmarking**: Visualizes base salary, sign-on bonus, and equity against standard market percentiles.
+- **Equity Modeling**: Calculates Year 1 Total Compensation vs. Recurring TC, factoring in 4-year vesting schedules and startup valuation scenarios (1x to 5x).
+- **Custom Negotiation Scripts**: Generates diplomatic email drafts for competing offers, under-market compensation, or equity-to-base rebalancing.
 
-### 5. Platform-Tailored Application Adapters
-| Target Platform | Output Format & Strategy |
-|---|---|
-| **Wellfound (AngelList)** | Short founder note (150–200 words), zero-to-one traction, and startup equity stance. |
-| **LinkedIn InMail** | High-impact 120-word recruiter pitch with scannable bullet points and custom connection request note. |
-| **Internshala** | Structured answers to "Why should you be hired?" and availability confirmations. |
-| **Enterprise ATS (Greenhouse / Lever)** | Formal cover letter, tailored resume bullets, and candidate-grounded screening answers. |
+### 5. Platform-Tailored Adapters
+- **Wellfound (AngelList)**: Concise founder pitch (150–200 words) highlighting 0-to-1 build speed, technical ownership, and equity expectations.
+- **LinkedIn InMail**: Compact 120-word recruiter note with bulleted achievements and a 300-character connection request template.
+- **Internshala**: Formatted answers to platform screening prompts (e.g., "Why should you be hired for this internship?").
+- **Enterprise ATS**: Formal cover letter, tailored resume bullets, and technical screening responses.
 
-### 6. Real-Time Async Pipeline & Worker Telemetry
-- Application-level async worker telemetry (`async-worker-node-01`, `async-worker-node-02`).
-- Provides real-time execution logs across four pipeline stages (`INGESTION` → `CORRELATION` → `SYNTHESIS` → `GENERATION`).
-- Non-blocking task monitoring with persistent telemetry logs in PostgreSQL / SQLite.
+### 6. Razorpay Commercial Billing & Doodle 1:1 Advisory
+- **Razorpay Integration**: Native checkout supporting **UPI (Google Pay, PhonePe, Paytm), Netbanking, and International Credit/Debit Cards** in INR (₹) and USD ($).
+- **HMAC Signature Verification**: Secure server-side validation using SHA-256 HMAC tokens.
+- **Doodle 1:1 Advisory Scheduling**: Built-in executive career strategy booking with instant calendar invite dispatch.
 
-### 7. Dual-View Kanban & Table Pipeline
-- Track job statuses across 6 distinct phases: `Prepared`, `Applied`, `Interviewing`, `Offer Received`, `Archived`.
-- Includes full-text search, platform filtering, CSV spreadsheet export, and quick note editing.
+### 7. Fail-Closed PostgreSQL & Local SQLite WASM Engine
+- **Production Persistence**: Direct PostgreSQL integration (`DATABASE_URL`) with fail-closed security in production.
+- **Local Zero-Setup Mode**: Embedded SQLite WASM engine for local development without external database dependencies.
 
 ---
 
-## 📡 API Reference
+## 📡 Comprehensive API Reference
 
-### Profile Intelligence & Live Scrapers
+### Profile Intelligence
 - `POST /api/analyze-profiles` — Ingest candidate URLs and compile unified dossier.
-- `POST /api/scrapers/ping` — Live query test for GitHub, LeetCode, or Substack endpoints.
-- `GET  /api/analysis` — Retrieve saved candidate dossier.
+- `POST /api/scrapers/ping` — Test public profile URLs for GitHub, LeetCode, or Substack.
+- `GET  /api/analysis` — Retrieve active candidate dossier.
 
-### Generation & Optimization
-- `POST /api/generate-application` — Generate tailored application package for a target job description.
+### Application Generation & ATS
+- `POST /api/generate-application` — Generate tailored application package for a target job.
 - `POST /api/refine-draft` — Apply prompt transformations to drafted content.
-- `POST /api/resume/latex` — Generate ATS LaTeX resume code and PDF preview structure.
+- `POST /api/resume/latex` — Generate ATS-compliant LaTeX resume code.
 - `POST /api/followup/generate` — Generate 4-stage recruiter follow-up sequence.
 - `GET  /api/jobs/:id/ics` — Download RFC 5545 `.ics` follow-up reminder file.
 
 ### Job Tracker & Negotiation
 - `GET    /api/jobs` — List all tracked job applications.
-- `GET    /api/jobs/:id` — Retrieve full dossier for a specific application.
+- `GET    /api/jobs/:id` — Retrieve full package for a specific job.
 - `PATCH  /api/jobs/:id` — Update application package or notes.
-- `PATCH  /api/jobs/:id/status` — Update pipeline stage.
-- `PATCH  /api/jobs/:id/offer` — Update offer compensation details & negotiation parameters.
-- `DELETE /api/jobs/:id` — Remove job record.
+- `PATCH  /api/jobs/:id/status` — Update application status.
+- `PATCH  /api/jobs/:id/offer` — Update compensation & negotiation data.
+- `DELETE /api/jobs/:id` — Remove job application record.
 
-### Authentication & Privacy
+### Payments & Advisory
+- `POST /api/razorpay/create-order` — Create Razorpay checkout order.
+- `POST /api/razorpay/verify-payment` — Verify payment HMAC signature and activate subscription.
+- `POST /api/doodle/book-session` — Schedule 1:1 advisory session with calendar sync.
+
+### Authentication & Account Security
+- `POST   /api/auth/register` — Create new account with CSPRNG OTP verification.
+- `POST   /api/auth/verify-email` — Verify email code using constant-time cryptographic comparison.
 - `POST   /api/auth/login` — Sign in with email and password.
-- `POST   /api/auth/register` — Create new candidate profile with CSPRNG OTP verification.
-- `POST   /api/auth/verify-email` — Verify email via constant-time cryptographic comparison.
-- `GET    /api/auth/me` — Get active session.
-- `GET    /api/auth/export-data` — Export user records as JSON.
-- `DELETE /api/auth/account` — Permanent account purge.
+- `GET    /api/auth/me` — Retrieve active session profile.
+- `GET    /api/auth/export-data` — Export all user data as JSON.
+- `DELETE /api/auth/account` — Permanent account and data deletion.
 
 ---
 
-## 🛠️ Tech Stack & Dependencies
+## 🛠️ Tech Stack & Security Model
 
-- **Frontend**: React 19, TypeScript, Tailwind CSS v4, Lucide Icons, Canvas Confetti.
-- **Backend Server**: Express 4, Node.js, TypeScript (`tsx`).
-- **AI Core**: Google Gemini 2.5 Flash via `@google/genai` SDK with deterministic fallback synthesis.
-- **Security & Authentication**:
-  - **PBKDF2 Salted Hashing**: 100,000-iteration SHA-512 password hashing with 16-byte cryptographically unique salts via Node `crypto`.
-  - **HMAC-SHA256 Signed Tokens**: 7-day expiration session tokens with constant-time signature verification. Requires `JWT_SECRET` (or `SECRET_KEY` alias) in production.
-  - **CSPRNG OTP Verification & Email Dispatch**: Cryptographically secure 6-digit codes (`crypto.randomInt`) with timing-safe verification, 15-minute expirations, and real transactional email dispatch via Resend API (with local dev console logging fallback).
-  - **HTTP Security Headers**: Native headers (`X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`, `Referrer-Policy`).
-  - **In-Memory Instance Rate Limiting**: Sliding-window rate limiter (60 requests/minute per IP) on `/api/*` endpoints to throttle brute-force attacks on individual server/container instances (for multi-instance serverless deployments, an external coordinator like Upstash Redis is recommended).
-- **Database & Persistence**: Fail-closed PostgreSQL persistence for production/serverless environments (`DATABASE_URL`). Embedded relational SQLite WASM storage is strictly isolated to local development environments to prevent silent production data loss.
-- **Build & Packaging**: Vite 6, esbuild CommonJS single-bundle compilation (`dist/server.cjs`).
+```
++-------------------------------------------------------------------------+
+|                               FRONTEND                                  |
+|  React 19 • TypeScript 5 • Tailwind CSS v4 • Lucide Icons • Motion UI   |
++------------------------------------+------------------------------------+
+                                     | (Vite & Fetch API)
++------------------------------------+------------------------------------+
+|                               BACKEND                                   |
+|   Express 4 • Node.js Runtime • TypeScript (tsx) • esbuild Bundler      |
++------------------------------------+------------------------------------+
+         |                           |                           |
++--------+--------+         +--------+--------+         +--------+--------+
+|    AI CORE      |         |    SECURITY     |         |   COMMERCE      |
+| Google GenAI    |         | PBKDF2 (100k)   |         | Razorpay API    |
+| Gemini 2.5 Flash|         | HMAC-SHA256 JWT |         | Doodle Sync     |
+| Grounding AST   |         | CSPRNG OTP      |         | Resend Email    |
++-----------------+         +-----------------+         +-----------------+
+```
+
+- **Password Hashing**: PBKDF2 with 100,000 iterations of SHA-512 and unique 16-byte cryptographic salts.
+- **Session Tokens**: HMAC-SHA256 signed tokens with 7-day expirations and timing-safe verification.
+- **Rate Limiting**: Sliding-window rate limiting on `/api/*` endpoints to protect against brute-force attempts.
+- **Email Delivery**: Transactional email dispatch via Resend API with local development console fallback.
 
 ---
 
-## 🚀 Local Development & Setup
+## 🚀 Local Development & Quickstart
 
 ### Prerequisites
-- Node.js 18.x or higher
-- npm 9.x or higher
+- **Node.js**: 18.x or higher
+- **npm**: 9.x or higher
 
-### Step-by-Step Setup
+### Quickstart Steps
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/<YOUR-USERNAME>/omniapply-ai.git
+   git clone https://github.com/your-username/omniapply-ai.git
    cd omniapply-ai
    ```
 
@@ -209,28 +332,37 @@
    ```bash
    cp .env.example .env
    ```
-   Add your configuration keys in `.env`:
+   Configure your keys in `.env`:
    ```env
    # Core AI
    GEMINI_API_KEY=your_gemini_api_key_here
 
-   # Session security (required in production, optional in local dev)
+   # Session Security
    JWT_SECRET=your_random_64_character_secret_here
 
-   # PostgreSQL connection (required in production, uses SQLite in local dev)
+   # Database (PostgreSQL for production; local dev defaults to embedded SQLite)
    DATABASE_URL=postgresql://user:password@host/dbname?sslmode=require
 
-   # Optional transactional email dispatch
-   RESEND_API_KEY=re_your_resend_api_key_here
+   # Commerce & Payments (Optional for local testing; mock fallback provided)
+   RAZORPAY_KEY_ID=rzp_test_your_key_id
+   RAZORPAY_KEY_SECRET=your_key_secret
+
+   # Transactional Email (Optional for local testing; OTP logged to console in dev)
+   RESEND_API_KEY=re_your_resend_api_key
    ```
 
 4. **Start the development server:**
    ```bash
    npm run dev
    ```
-   Open your browser at `http://localhost:3000`.
+   Open `http://localhost:3000` in your browser.
 
-5. **Build for production:**
+5. **Run test suite:**
+   ```bash
+   npm test
+   ```
+
+6. **Build for production:**
    ```bash
    npm run build
    npm start
@@ -238,28 +370,16 @@
 
 ---
 
-## 🤝 Contributing
+## 💡 Honest Disclosures & Operational Constraints
 
-Contributions are welcome! Please review [CONTRIBUTING.md](./CONTRIBUTING.md) for details on code style, branch naming conventions, and pull request workflows.
-
----
-
-## 💡 Honest Disclosures & Ethics
-
-1. **Strict Anti-Fabrication Engine**: OmniApply AI is explicitly programmed *not* to hallucinate metrics, jobs, or skills. The quality and depth of the generated application package are entirely dependent on the richness of your provided public profiles. If your GitHub, LeetCode, or Portfolio lacks detail, the system will output a lighter, strictly verified resume rather than inventing "fake" achievements.
-2. **Human-in-the-Loop Philosophy**: While the AI generates highly tailored materials grounded in your actual public work, **you must always review every cover note, screening answer, and salary figure** prior to final submission.
-3. **Scraper Limitations**: The platform uses live scrapers (e.g., GitHub API, Substack RSS) which are subject to external rate limits and structural changes. If a scrape fails, the system safely falls back to a minimal baseline rather than guessing your background.
-4. **Platform Terms Compliance**: OmniApply AI functions as a drafting and preparation engine. It does not perform unattended, automated browser clicks on job boards, ensuring account safety and alignment with platform terms of service.
-5. **Data Privacy**: Your profile signals and applications reside in your active session. You can export or delete your data at any time via **Settings → Data Privacy**.
+1. **Grounded in Public Signals**: The quality and specificity of generated applications depend entirely on your provided technical profiles. If a GitHub or LeetCode profile has limited public activity, the engine outputs concise, strictly verified materials rather than inventing placeholder projects.
+2. **Human-in-the-Loop Required**: Always review generated cover notes, resume bullets, and salary parameters before submitting applications.
+3. **No Unattended Auto-Applying**: OmniApply AI is a drafting and preparation engine. It does not perform automated browser clicks on third-party job portals, keeping your accounts fully compliant with platform terms of service.
+4. **Third-Party API Rate Limits**: Public scrapers (GitHub, LeetCode, Substack) are subject to external rate limits. If rate limits are encountered, the engine gracefully falls back to structured template baselines.
+5. **Data Ownership**: You retain full ownership of your data. You can export or permanently delete your account and records at any time from **Settings → Data Privacy**.
 
 ---
 
 <div align="center">
-  <sub>Built with ❤️ by the OmniApply Open Source Contributors.</sub>
+  <sub>OmniApply AI — Autonomous Engineering Career Intelligence</sub>
 </div>
-
-### Dual-Runtime Deployment Architecture
-
-OmniApply AI uses a dual-runtime architecture for flexible deployment:
-1. **Serverless (Vercel)**: The `api/index.ts` entry point exports the Express application for serverless invocation on Vercel.
-2. **Containerized/Local (Docker/Node)**: The `server.ts` entry point initializes a long-running Express server listening on port 3000, suitable for standard container deployments (Cloud Run, AWS ECS).
