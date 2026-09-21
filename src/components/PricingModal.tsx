@@ -11,11 +11,13 @@ import {
   CreditCard,
   Calendar,
   Smartphone,
-  CheckCircle2
+  CheckCircle2,
+  Lock
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { UserAccount, SubscriptionTier } from '../types';
 import { DoodleBookingModal } from './DoodleBookingModal';
+import { apiFetch } from '../utils/apiClient';
 import { 
   DoodleArrow, 
   DoodleCrown, 
